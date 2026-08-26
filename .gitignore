@@ -1,0 +1,23 @@
+# Python env (947 MB, rebuilt via the setup steps in CLAUDE.md)
+.venv/
+__pycache__/
+*.py[cod]
+
+# DogFLW imagery - CC BY-NC 4.0, not ours to redistribute (349 MB).
+# Rebuild with: .venv/bin/python src/extract_dogflw.py
+data/dogflw/
+
+# Model snapshots (118 MB each). Rebuild with src/extend_head.py + src/train_dogface.py
+*.pt
+model_weights/
+
+# Third-party demo videos (50 MB) and scratch frames.
+# Note: must be videos/* not videos/ - git cannot re-include a file whose parent dir is excluded.
+videos/*
+!videos/SOURCES.md
+
+# Derived training data - regenerated in seconds by src/make_coco.py
+dlc_project/
+
+# Rendered demo videos
+outputs/*.mp4
