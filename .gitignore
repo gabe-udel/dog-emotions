@@ -23,12 +23,15 @@ model_weights/
 videos/*
 !videos/SOURCES.md
 
-# Test clips dropped in the project root rather than videos/. These are the user's own
-# footage, not project assets, and publishing them is not reversible once pushed.
+# Test clips dropped in the project root rather than videos/. Excluded by default:
+# these are personal footage rather than project assets, and a binary committed here is
+# permanent in the history. "Happy lab.mov" is tracked deliberately - it is the clip
+# every measurement in CLAUDE.md section 11 was made on, so the numbers are reproducible.
 *.mov
 *.avi
 *.mkv
 *.webm
+!Happy lab.mov
 
 # Editor state
 .vscode/
