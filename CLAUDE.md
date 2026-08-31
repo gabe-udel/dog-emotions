@@ -42,19 +42,37 @@ Two things were interpreted rather than stated, and a peer should sanity-check b
 | Eval script runs end-to-end | produced the baseline JSON over 479 test images |
 | Figures 1 and 2 | `outputs/figures/` |
 
-### NOT done — this is the remaining work
+### Trained and validated — 2026-08-30
+Training ran. Three checkpoints exist in `model_weights/` (gitignored, 112 MB each;
+rebuild with `extend_head.py` + `train_dogface.py`). Full test split, 479 held-out images:
+
+| checkpoint | added NME ↓ | PCK@5% | PCK@10% | SuperAnimal drift |
+|---|---|---|---|---|
+| `..._hrnet_w32_dogface.pt` — untrained warm start | 0.0754 | 39.4% | 73.3% | 0.0000 |
+| **`..._dogface_final.pt` — σ=17, 4 epochs — the one in use** | **0.0583** | 57.0% | 83.1% | 0.0000 |
+| `..._dogface_sigma8.pt` — σ=8, 7 epochs | 0.0630 | 54.4% | 79.7% | 0.0000 |
+
+Drift `0.0000` throughout: memory replay held, the 39 body keypoints are untouched.
+
+**σ=8 was an experiment that failed on accuracy.** Sharpening `pos_dist_thresh` 17→8 was
+predicted to help dense facial landmarks and made NME worse. It *is* better calibrated
+(bad/good confidence ratio 0.46 vs 0.75), but it expresses that by scoring its weak
+channels so low they vanish from the display — 33.5 of 46 points drawn against σ=17's
+46.0. Keep σ=17 as the default.
+
+Its per-epoch curve also showed **train loss going flat while test NME was still
+falling**. Train loss is not a stopping signal on this project; use `--eval-every 1`.
+
+### Then: four inference-time fixes, no retraining (§11)
+The rendered output was still poor, and every cause turned out to be fixable after the
+CNN rather than inside it. See §11 — this is where most of the accuracy now comes from.
+
+### Still not done
 | item | state |
 |---|---|
-| **A trained model** | **Does not exist.** Phase 1 was killed at iteration 375/482, before its end-of-epoch save. `dlc_project/phase1/` has a config and a log but **no `.pt`**. |
-| Phase 2 (backbone `stage4` fine-tune) | never started |
-| Final evaluation of a fine-tuned model | never run |
-| The demo video | **never produced** — this is the actual deliverable the prompt asked for |
-| Figure 3 (qualitative test predictions) | never run; needs a trained snapshot |
-| Whether the added keypoints actually *improve* | **unknown and unvalidated** — see §7 |
-
-The only model file present is the **untrained** extended one. Running the video script
-against it today will render a dog with 39 correct body keypoints and 37 face keypoints
-that are just copies of their warm-start donors.
+| Figure 3 (qualitative test predictions) | never run |
+| Two-model split (face + body, dual inference) | proposed, not built |
+| The DogFLW landmark manual | still behind a dead link; §6 naming remains inferred |
 
 ---
 
@@ -199,17 +217,86 @@ Anyone publishing off this should still get the real manual from the authors.
 **Do not read the 73.3% as a result.** The added channels are warm-start copies of their
 donor keypoints, so this measures "how close is the nearest existing SuperAnimal keypoint
 to this DogFLW landmark", not any learned ability. **0.0754 is the bar training must beat**,
-and a fine-tuned model must be compared against this row, not against zero. The whole
-question this project has not yet answered is whether training clears that bar.
+and a fine-tuned model must be compared against this row, not against zero.
 
-The `0.0000` drift row is meaningful: it proves the head surgery preserved the original
-39 channels exactly.
+**Training cleared it** (0.0583, −22.7%), and the drift row stayed `0.0000`, proving head
+surgery preserved the original 39 channels exactly.
+
+### The second trap, which cost more
+Mean NME across all 46 landmarks is a bad way to rank checkpoints here, for two reasons
+that both bit:
+
+1. **It weights a garbage ear point exactly like an eye corner.** The error was never
+   spread across the face — per region, eye 0.0278 / nose 0.0301 / mouth 0.0344 against
+   ear 0.0890 / head-top 0.1250. Training moved nose and mouth 30-47% and the ear/head
+   group 6-8%.
+2. **It ignores confidence entirely**, so it ranked the model that *hides* its failures
+   below the one that displays them.
+
+And an aggregate can hide the mechanism outright: ear error looked uniformly mediocre
+until it was split by ear type, at which point it **inverted** — `ear_*_tip` scores 0.0485
+on erect ears and 0.102 on floppy, while `ear_*_outer_base` is 0.130 erect against 0.072
+floppy. Averaged together those cancel to a 1.11× ratio and look like noise. They are not
+noise; see §11.
 
 ---
 
 ## 8. Running it
 
-### Setup (already done in `.venv/`; these are the steps to rebuild)
+### Windows setup (this machine — 2026-08-26)
+
+The project was ported from the original aarch64 Asahi box to **Windows 11, AMD Ryzen AI 5
+340 (6 physical / 12 logical cores), 15.2 GB RAM, Radeon 840M integrated graphics**.
+Still **CPU-only**: PyTorch's ROCm builds are Linux-only, so the iGPU is not usable and
+`device="cpu"` throughout is correct, not a leftover.
+
+Python **3.11** (not 3.13): the `--system-site-packages` + `numpy<2` dance in the next
+section existed only because numpy<2 had no cp313 aarch64 wheel. On Windows/cp311 that
+constraint is gone, but the venv still ends up on **numpy 2.4** because CPU torch pulls it,
+so the `--no-deps` install is still the right shape:
+
+```powershell
+py -3.11 -m venv .venv
+.venv\Scripts\python.exe -m pip install --upgrade pip setuptools wheel
+.venv\Scripts\python.exe -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+.venv\Scripts\python.exe -m pip install --no-deps deeplabcut==3.0.1
+.venv\Scripts\python.exe -m pip install "dlclibrary>=0.0.12" matplotlib einops filterpy networkx `
+    pydantic tqdm imageio-ffmpeg scikit-learn scikit-image statsmodels tables pycocotools `
+    numba "albumentations<=1.4.3"
+.venv\Scripts\python.exe -m pip install timm
+```
+
+`timm` is **explicit here**. On the original box it came from system site-packages; a
+Windows venv has no system packages to inherit, and DeepLabCut's HRNet backbone needs it.
+
+`imgaug` is declared by DeepLabCut but deliberately **not installed** — it is a
+TensorFlow-era dependency, `import deeplabcut` succeeds without it, and the original
+`requirements-venv.txt` omits it too. pip will print a conflict warning about it, plus
+numpy/matplotlib/pandas/filelock. All five are expected under `--no-deps` and match the
+reference env.
+
+Verify: `.venv\Scripts\python.exe -c "import deeplabcut; print(deeplabcut.__version__)"`
+
+**Windows-specific code changes** (all committed here):
+
+| file | change | why |
+|---|---|---|
+| `src/extract_dogflw.py` | `/tmp/dogflw.zip` → `--zip`, defaulting to `data\dogflw.zip` and auto-finding a `*dogflw*.zip` in `~/Downloads` | no `/tmp` on Windows |
+| `src/run_video.py` | `/tmp/dlc_frames` → `tempfile.gettempdir()` | same |
+| `src/train_dogface.py` | `dataloader_workers` hardcoded 2 → `--workers`, default **0 on Windows** | Windows has no `fork()`; under `spawn` each worker re-imports the module, and albumentations/OpenCV in spawned workers is a known hang risk |
+| `src/superanimal.py` | `DETECTOR` default resnet50_fpn_v2 → mobilenet | every caller already overrode it; the old default made `snapshot_paths()` download a ~170 MB detector nothing uses |
+| `run_pipeline.ps1` | new — native port of `run_pipeline.sh` | `.venv/bin/python`, `ls -t`, `cp`, `tee` are POSIX; PowerShell 5.1 also has no `&&`, so native exit codes need explicit checks |
+
+Run the pipeline with `.\run_pipeline.ps1` (params: `-P1Epochs`, `-P2Epochs`, `-BatchSize`,
+`-Threads`, `-Workers`). `run_pipeline.sh` is left in place for the Linux box.
+
+Weights cache to `.venv\Lib\site-packages\deeplabcut\modelzoo\checkpoints\` and persist —
+the `dlc_hf_*` temp dirs in the download log are staging only. HuggingFace warns about
+symlinks on Windows; harmless, silence with `HF_HUB_DISABLE_SYMLINKS_WARNING=1`.
+
+---
+
+### Original setup, aarch64 Linux (kept for the other box)
 The environment is awkward and the reasons are load-bearing: this box is **CPU-only aarch64
 (Asahi Linux), no CUDA**, on Python 3.13. DeepLabCut 3.0.1 pins `numpy<2`, which has no
 cp313 wheel and would try to build from source. So:
@@ -293,11 +380,37 @@ per-frame output.
 ## 9. Known issues / next steps, roughly in priority order
 
 1. **Train the model.** Nothing downstream is meaningful until Phase 1 + Phase 2 finish.
-2. **Phase 2's ~20 min/epoch is an estimate that was never measured.** It was extrapolated
-   from Phase 1's frozen-backbone rate assuming backward through `stage4` costs ~2× a
-   forward pass. Measure the first 25 iterations before trusting any schedule built on it.
-   The earlier estimates in this project were wrong twice, both times because the
-   benchmark ran while something else was using the cores — benchmark on a quiet machine.
+2. ~~**Phase 2's ~20 min/epoch is an estimate that was never measured.**~~ **MEASURED
+   2026-08-26** on the Windows box (6 cores, CPU). The old guess assumed backward through
+   `stage4` costs ~2× a forward pass; the real ratio is **1.84×**, so the estimate was
+   sound but slightly pessimistic.
+
+   Relative cost of each lever, HRNet-w32 @ 76 outputs, forward+backward (ratios are the
+   trustworthy part — these synthetic runs come out ~30% slower than a real training
+   iteration, which measured **0.80 s/iter** for phase 1):
+
+   | lever | setting | rel. cost |
+   |---|---|---|
+   | crop | 256 / 224 / 192 / 160 | 1.00 / 0.75 / 0.56 / 0.41 |
+   | batch (per *image*) | 4 / 8 / 16 | 1.03 / 1.00 / 0.78 |
+   | backbone | none / stage4 / stage3,4 / all | 1.00 / 1.84 / 2.69 / 3.41 |
+
+   Applying the 1.84× to the real 0.80 s/iter gives **phase 2 ≈ 1.5 s/iter, ~11.8
+   min/epoch** — so 3 phase-2 epochs is ~35 min, not the ~60 the old estimate implied.
+
+   Keypoint *count* is not a lever: trimming 76→63 outputs saves 429 parameters
+   (0.0015% of the model) and 2.6 ms of an 800 ms iteration. The head is a 1×1 conv; the
+   29.3M-parameter backbone is the entire cost.
+
+   Note on crop: it is the largest raw lever but **not free**. 256×256 is what
+   `get_inference_runners` uses for the released SuperAnimal config, so lowering it makes
+   training crops disagree with inference crops *and* with the crops the memory-replay
+   pseudo-labels were generated on. It also shrinks the heatmap grid (64→48 px at crop
+   192), and the face already occupies only ~39 px of that grid — bad for 46 dense
+   landmarks. Batch 16 is the lever with no correctness cost; scale the LR by ~√2 with it.
+
+   Still true: benchmark on a quiet machine. The earlier estimates in this project were
+   wrong twice, both times because something else was using the cores.
 3. **Validate against the §7 baseline**, not against zero.
 4. **Hyperparameters are unswept.** `lr-head 1e-3`/`2e-4`, `lr-backbone 1e-5`,
    `PSEUDO_THRESH 0.4`, `MERGE_THRESH 0.05`, 3 epochs — all first guesses, none tuned.
@@ -318,3 +431,64 @@ per-frame output.
 DogFLW is **CC BY-NC 4.0 — non-commercial**. Mixkit clip 1476 is Mixkit Free License.
 `dog_walk_sf.ogv` is CC BY-SA 3.0. SuperAnimal weights follow the DeepLabCut Model Zoo
 terms. The non-commercial restriction on DogFLW propagates to any model trained on it.
+
+---
+
+## 11. Four inference-time fixes — where the accuracy actually came from
+
+After training, the rendered video was still poor. Every cause turned out to be fixable
+**after the CNN rather than inside it**, and together these matter more than the
+fine-tuning did. All are on by default in `run_video.py`; each has an opt-out flag.
+
+### (a) `src/subpixel.py` — the largest bug in the project
+`HeatmapPredictor.get_pose_prediction` decodes each keypoint as `torch.argmax` over the
+64×64 heatmap and then adds a learned offset **from the locref map**. These models were
+trained with `generate_locref: false`, so that offset is always `None` and every keypoint
+snaps to a cell centre — 4 px in the 256 crop.
+
+For dense facial landmarks that is fatal: two landmarks peaking in the same cell decode to
+*byte-identical* coordinates and render as one dot. Measured on video, the 46 face
+channels occupied **16 distinct pixel positions**.
+
+Fitting a parabola through each peak and its neighbours (standard HRNet / DARK
+post-processing) gives **44 of 46 distinct**, and ~7% better NME everywhere because the
+rounding was real error, not just a display artefact. Disable with `--no-subpixel`.
+
+### (b) `src/ear_correct.py` — ear NME 0.0882 → 0.0631 (−28.5%)
+One output channel serves both erect and floppy ears, so the model averages the two
+geometries. That makes its ear error **systematic and opposite by type** (§7), and a
+systematic error can be subtracted.
+
+Two pieces, both fitted on the train split: a logistic classifier that recovers ear type
+from the model's *own* predicted ear landmarks (80% on held-out data, 51.8% majority
+baseline — nothing external needed at inference), and a per-type mean residual in a
+similarity frame defined by the 30 reliable landmarks. Every ear landmark improved 12–42%.
+Predicted type matches an oracle type to within 0.0002, because misclassifications land
+between adjacent types whose biases are similar. `--no-ear-correct`; refit with
+`python src/ear_correct.py --fit --eval`.
+
+### (c) `src/shape_refine.py` — skull top, NME 0.130 → 0.074 (−43%)
+`head_top_left/right` sit on featureless fur: PCK@5% of 0.6%, i.e. chance. But *no local
+texture* is not *undetermined* — the crown is implied by the rest of the head. A ridge
+shape model on the 30 reliable landmarks derives them from the CNN's own predictions.
+
+The same trick **fails on ears** (0.100 → 0.180): an ear can be perked or flopped
+independently of the face, so geometry cannot predict it. Only landmarks that are globally
+determined *and* locally featureless belong in `TARGET`. `--no-refine`.
+
+### (d) Two-pass head crop — available, off by default
+Re-cutting the box so the face fills 55% of it (the measured optimum; a whole-dog box on
+video gives ~25%) is worth ~18% NME on the reliable landmarks. It is **off by default**
+because it costs more than it buys for a human viewer: it lowers confidence, and with
+sub-pixel decoding on it drops distinct face points from 44 to 25. Use it when measuring,
+not when looking. `--head-crop 0.55`, gated by `--gate scale`.
+
+### What generalised
+Three of these came from the same move: **an error that looks like noise in aggregate is
+often systematic once conditioned on the right variable.** Before calling a landmark
+unlearnable, check whether its error has a consistent direction given something
+observable. `keypoint_scheme.UNRELIABLE` was 14 landmarks, then 2, and is now empty.
+
+Also worth carrying: on this model **confidence runs opposite to accuracy** across crop
+scales (0.807 at the worst, 0.589 at the best). It is a visibility control, never a
+quality signal — do not gate or tune anything by watching it rise.

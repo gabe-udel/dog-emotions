@@ -7,6 +7,13 @@ __pycache__/
 # Rebuild with: .venv/bin/python src/extract_dogflw.py
 data/dogflw/
 
+# The Kaggle download itself (1.4 GB; 'archive.zip' is Kaggle's default name).
+# Same licence problem, and it is pure input - extract_dogflw.py regenerates data/dogflw
+# from it. Kept out of the tree rather than deleted so re-extraction needs no re-download.
+archive.zip
+data/dogflw.zip
+*.zip
+
 # Model snapshots (118 MB each). Rebuild with src/extend_head.py + src/train_dogface.py
 *.pt
 model_weights/
@@ -16,8 +23,22 @@ model_weights/
 videos/*
 !videos/SOURCES.md
 
+# Test clips dropped in the project root rather than videos/. These are the user's own
+# footage, not project assets, and publishing them is not reversible once pushed.
+*.mov
+*.avi
+*.mkv
+*.webm
+
+# Editor state
+.vscode/
+
 # Derived training data - regenerated in seconds by src/make_coco.py
 dlc_project/
 
 # Rendered demo videos
 outputs/*.mp4
+
+# Ad-hoc landmark-index overlays. Regenerable exactly from a --seed, and a few random
+# batches would otherwise bury the two figures that are actually tracked.
+outputs/figures/indices/

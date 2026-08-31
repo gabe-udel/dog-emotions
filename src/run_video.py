@@ -5,7 +5,7 @@ what actually demonstrates the added keypoints: same frames, 39 keypoints on the
 39 + the new DogFLW face keypoints on the right.
 """
 from __future__ import annotations
-import argparse, json, sys, time
+import argparse, json, sys, tempfile, time
 from pathlib import Path
 
 import cv2
@@ -58,6 +58,109 @@ def face_inset(clean, kpts, rend, pcut, size=300):
     return crop
 
 
+def head_boxes(kp, boxes, rend, shape, frac, pcut):
+    """Re-cut each detector box so the predicted face fills `frac` of its long side.
+
+    The pose head sees a top-down crop of whatever box it is given. On DogFLW the
+    detector box puts the face at a median 56% of the box's long side; on video the
+    same detector returns a whole-dog box and the face drops to ~25%, which measures
+    about 13% worse NME on a ground-truth sweep. This re-crops to the measured
+    optimum. Frames where pass 1 found too few face points keep their original box.
+    """
+    H, W = shape
+    out = []
+    for i, b in enumerate(boxes):
+        pts = kp[i][rend.face_indices]
+        v = np.isfinite(pts).all(1) & (pts[:, 2] >= pcut)
+        if b is None or v.sum() < 6:
+            out.append(b)
+            continue
+        p = pts[v, :2]
+        cx, cy = p.mean(0)
+        side = max(np.ptp(p[:, 0]), np.ptp(p[:, 1])) / frac
+        a = float(np.clip(cx - side / 2, 0, W - 1))
+        t = float(np.clip(cy - side / 2, 0, H - 1))
+        out.append(np.array([a, t, min(side, W - a), min(side, H - t)]))
+    return out
+
+
+def gate_second_pass(kp, boxes, rend, criterion, conf_thresh, fill_thresh):
+    """Which frames actually need the head-cropped second pose pass.
+
+    The point of gating is compute: a second pass costs as much as the first, and on
+    frames where the face already fills the box properly it changes almost nothing.
+
+    Two criteria, and they do not agree:
+
+    'scale'      - re-run when the face fills less than `fill_thresh` of the detector
+                   box.  This is the quantity head-cropping actually corrects, and the
+                   ground-truth sweep is monotonic in it: NME on the 30 reliable
+                   landmarks runs 0.0411 / 0.0362 / 0.0328 at 25% / 45% / 55% fill.
+
+    'confidence' - re-run when median confidence over the reliable landmarks is below
+                   `conf_thresh`.  Requested, and supported, but be aware it is
+                   inverted on this model: across that same sweep confidence went 0.807
+                   -> 0.705 as accuracy IMPROVED.  High confidence indicates a bad
+                   crop here, so this gate tends to skip the second pass exactly when
+                   it would have helped most.
+
+    Returns (bool array, stats dict).
+    """
+    from keypoint_scheme import RELIABLE
+    rel = [rend.d2m[d] for d in RELIABLE if d in rend.d2m]
+    n = len(kp)
+    need = np.zeros(n, bool)
+    fills = np.full(n, np.nan)
+    confs = np.full(n, np.nan)
+    for i in range(n):
+        if boxes[i] is None or not np.isfinite(kp[i][:, :2]).any():
+            continue
+        pts = kp[i][rend.face_indices]
+        v = np.isfinite(pts).all(1) & (pts[:, 2] >= 0.1)
+        if v.sum() >= 6:
+            p = pts[v, :2]
+            span = max(np.ptp(p[:, 0]), np.ptp(p[:, 1]))
+            fills[i] = span / max(boxes[i][2], boxes[i][3])
+        confs[i] = np.nanmedian(kp[i][rel, 2])
+
+    if criterion == "always":
+        need[:] = [b is not None for b in boxes]
+    elif criterion == "never":
+        pass
+    elif criterion == "confidence":
+        need = np.nan_to_num(confs, nan=0.0) < conf_thresh
+    else:                                    # 'scale'
+        need = np.nan_to_num(fills, nan=0.0) < fill_thresh
+    need &= np.array([b is not None for b in boxes])
+    return need, {"fill": fills, "conf": confs}
+
+
+def ema_fuse(k, lo, hi, alpha):
+    """Causal exponential moving average on mid-confidence keypoints only.
+
+    Points above `hi` are already steady - measured frame-to-frame jitter is 0.009 of
+    the detector box - and smoothing them only adds lag when the dog moves.  Points
+    below `lo` are not drawn at all.  The band between is where jitter is both visible
+    and worth fixing.
+
+    alpha is the weight on the current frame: 1.0 disables smoothing, lower is smoother
+    and laggier.
+    """
+    if alpha >= 1.0 or len(k) < 2:
+        return k
+    out = k.copy()
+    prev = None
+    for i in range(len(out)):
+        cur = out[i]
+        if prev is not None:
+            band = ((cur[:, 2] >= lo) & (cur[:, 2] < hi)
+                    & np.isfinite(cur[:, :2]).all(1) & np.isfinite(prev[:, :2]).all(1))
+            if band.any():
+                cur[band, :2] = alpha * cur[band, :2] + (1 - alpha) * prev[band, :2]
+        prev = cur.copy()
+    return out
+
+
 def smooth_series(k, win):
     """Temporal median over `win` frames, applied only where the score passes."""
     if win <= 1:
@@ -98,18 +201,73 @@ def main():
     ap.add_argument("--compare", action="store_true", help="side-by-side vs original SuperAnimal")
     ap.add_argument("--fps", type=float, default=0)
     ap.add_argument("--smooth", type=int, default=1, help="temporal median window (1 = off)")
-    ap.add_argument("--no-inset", action="store_true")
+    ap.add_argument("--no-inset", action="store_true", help="drop the zoomed face panel")
+    ap.add_argument("--bare", action="store_true",
+                    help="keypoints only: no zoom inset, no title banner, no legend")
+    ap.add_argument("--no-subpixel", action="store_true",
+                    help="disable sub-cell peak fitting. Without it keypoints snap to "
+                         "the 64x64 heatmap grid (4 px in the crop) and dense facial "
+                         "landmarks decode to identical pixels - see subpixel.py")
+    ap.add_argument("--no-lines", action="store_true",
+                    help="draw bare points with no skeleton edges or face contours")
+    ap.add_argument("--legend", action="store_true",
+                    help="force the colour legend on even with --bare")
+    ap.add_argument("--landmarks", choices=["all", "reliable"], default="all",
+                    help="'all' draws every face landmark; 'reliable' draws only the 32 "
+                         "the model can actually place (30 detected + 2 shape-derived) "
+                         "and omits the 14 ear contour points measured unlearnable. "
+                         "Deterministic - unlike a confidence threshold it does not "
+                         "shift with how confident the model happens to be on a clip")
+    ap.add_argument("--no-ear-correct", action="store_true",
+                    help="skip the per-ear-type bias correction. It is on by default: "
+                         "it classifies ear type from the model's own ear landmarks "
+                         "and subtracts that type's systematic offset, measuring "
+                         "ear NME 0.0882 -> 0.0631 on the test split")
+    ap.add_argument("--no-refine", action="store_true",
+                    help="skip the shape-model correction of the head-top landmarks. "
+                         "The correction is on by default: it measures 43%% better than "
+                         "the CNN on those two channels (NME 0.130 -> 0.074)")
+    ap.add_argument("--head-crop", type=float, default=0.0, metavar="FRAC",
+                    help="two-pass: after the first pose pass, re-cut the box so the face "
+                         "fills FRAC of it and run pose again. 0 = off. 0.55 measured best "
+                         "on the DogFLW test split; the whole-dog box gives ~0.25 on video")
+    ap.add_argument("--gate", choices=["always", "scale", "confidence", "never"],
+                    default="scale",
+                    help="which frames get the second pass. 'scale' (default) re-runs "
+                         "when the face fills less than --gate-fill of the box - the "
+                         "quantity head-cropping corrects. 'confidence' re-runs below "
+                         "--gate-conf, but confidence is inverted against accuracy on "
+                         "this model, so it skips frames that needed the pass")
+    ap.add_argument("--gate-conf", type=float, default=0.75,
+                    help="confidence gate threshold (used with --gate confidence)")
+    ap.add_argument("--gate-fill", type=float, default=0.45,
+                    help="scale gate threshold: re-run when face/box is below this")
+    ap.add_argument("--ema", type=float, default=1.0, metavar="ALPHA",
+                    help="temporal EMA weight on the current frame, applied only to "
+                         "keypoints inside the confidence band. 1.0 = off, 0.5 = "
+                         "moderate smoothing. Suppresses jitter without lagging the "
+                         "high-confidence points")
+    ap.add_argument("--ema-band", type=float, nargs=2, default=[0.35, 0.75],
+                    metavar=("LO", "HI"),
+                    help="confidence band the EMA applies to (default 0.35 0.75)")
     ap.add_argument("--also-solo", default="", help="additionally write the fine-tuned panel alone")
     args = ap.parse_args()
 
     from deeplabcut.pose_estimation_pytorch.config.pose import PoseConfig
     from deeplabcut.pose_estimation_pytorch.apis.utils import get_inference_runners
 
+    if not args.no_subpixel:
+        import subpixel
+        if subpixel.enable():
+            print("subpixel: parabolic peak fitting enabled (argmax would quantise "
+                  "keypoints to the 4 px heatmap grid)", flush=True)
+
     rend = Renderer()
     n_kpt = len(rend.bodyparts)
 
     # ---- decode frames to a scratch dir (the DLC runners take file paths) ----
-    scratch = Path("/tmp/dlc_frames"); scratch.mkdir(exist_ok=True)
+    scratch = Path(tempfile.gettempdir()) / "dlc_frames"
+    scratch.mkdir(parents=True, exist_ok=True)
     for f in scratch.glob("*.jpg"):
         f.unlink()
     cap = cv2.VideoCapture(args.video)
@@ -158,9 +316,10 @@ def main():
         if boxes[i] is None:
             boxes[i] = next((b for b in boxes[i:] if b is not None), None)
 
-    def run_pose(runner, nk):
-        items = [(p, {"bboxes": np.array([b])}) for p, b in zip(paths, boxes) if b is not None]
-        idxs = [i for i, b in enumerate(boxes) if b is not None]
+    def run_pose(runner, nk, bxs=None):
+        bxs = boxes if bxs is None else bxs
+        items = [(p, {"bboxes": np.array([b])}) for p, b in zip(paths, bxs) if b is not None]
+        idxs = [i for i, b in enumerate(bxs) if b is not None]
         res = np.full((len(paths), nk, 3), np.nan)
         t0 = time.time()
         out, B = [], 24
@@ -173,6 +332,29 @@ def main():
 
     pose_new = build_pose_runner(args.config, args.snapshot, n_kpt)
     kp_new = run_pose(pose_new, n_kpt)
+    if args.head_crop > 0:
+        need, st = gate_second_pass(kp_new, boxes, rend, args.gate,
+                                    args.gate_conf, args.gate_fill)
+        fill, conf = np.nanmedian(st["fill"]), np.nanmedian(st["conf"])
+        print(f"gate '{args.gate}': median face/box {fill:.0%}, median confidence "
+              f"{conf:.2f} -> second pass on {need.sum()}/{len(need)} frames "
+              f"({need.sum()/max(len(need),1):.0%} of the compute a full pass would cost)",
+              flush=True)
+        if need.any():
+            hb = head_boxes(kp_new, boxes, rend, (H, W), args.head_crop, args.pcutoff)
+            # gated frames keep their pass-1 result: None boxes are skipped by run_pose
+            hb = [b if need[i] else None for i, b in enumerate(hb)]
+            kp2 = run_pose(pose_new, n_kpt, hb)
+            ok = (need & np.isfinite(kp2[:, :, 0]).any(1)).nonzero()[0]
+            # Take ONLY the face channels from the cropped pass. A head-tight crop puts
+            # the neck, back, legs and tail outside the frame the pose head sees, so
+            # pass 2 places just 9 of the 30 body-only keypoints against pass 1's 27.
+            # Pass 1 saw the whole dog and keeps the body; pass 2 saw the face properly
+            # and keeps the face.
+            fch = rend.face_indices
+            kp_new[np.ix_(ok, fch)] = kp2[np.ix_(ok, fch)]
+            print(f"head crop: took {len(fch)} face channels from the cropped pass on "
+                  f"{len(ok)} frames; body keypoints kept from pass 1", flush=True)
 
     kp_old = None
     if args.compare:
@@ -185,10 +367,69 @@ def main():
             num_bodyparts=39, num_unique_bodyparts=0, device="cpu", detector_path=None)
         kp_old = run_pose(old_runner, 39)
 
+    # Ear-type bias correction, before the shape model so head_top is derived from a
+    # settled face. One channel serves both erect and floppy ears, so the model averages
+    # the two geometries and errs in a consistent direction; see ear_correct.py.
+    if not args.no_ear_correct:
+        try:
+            from ear_correct import EarCorrector
+            ec = EarCorrector()
+            got = [ec.apply(kp_new[i]) for i in range(len(kp_new))
+                   if np.isfinite(kp_new[i]).any()]
+            got = [g for g in got if g]
+            if got:
+                counts = {t: got.count(t) for t in sorted(set(got))}
+                print(f"ear correct: {len(got)}/{len(kp_new)} frames, ear type "
+                      f"{counts}", flush=True)
+        except FileNotFoundError:
+            print("ear correct: data/ear_bias.pkl not found - skipping "
+                  "(run: python src/ear_correct.py --fit)", flush=True)
+
+    # Shape-model correction, before smoothing so the temporal median sees corrected
+    # points. Only touches channels the CNN measurably cannot see; see shape_refine.py.
+    if not args.no_refine:
+        try:
+            from shape_refine import Refiner
+            ref = Refiner()
+            n_ref = sum(ref.apply(kp_new[i]) > 0 for i in range(len(kp_new))
+                        if np.isfinite(kp_new[i]).any())
+            print(f"shape refine: corrected {', '.join(ref.names)} on {n_ref}/{len(kp_new)}"
+                  f" frames", flush=True)
+        except FileNotFoundError:
+            print("shape refine: data/shape_model.npz not found - skipping "
+                  "(run: python src/shape_refine.py --fit)", flush=True)
+
+    # Drop the unlearnable channels by score, so both the points and every contour
+    # segment touching them disappear through the existing visibility test.
+    if args.landmarks == "reliable":
+        from keypoint_scheme import UNRELIABLE
+        drop = [rend.d2m[d] for d in UNRELIABLE if d in rend.d2m]
+        kp_new[:, drop, 2] = -1.0
+        print(f"landmarks: drawing the reliable {len(rend.face_indices) - len(drop)} of "
+              f"{len(rend.face_indices)} face landmarks; {len(drop)} ear contour points "
+              f"omitted", flush=True)
+
     if args.smooth > 1:
         kp_new = smooth_series(kp_new, args.smooth)
         if kp_old is not None:
             kp_old = smooth_series(kp_old, args.smooth)
+
+    if args.ema < 1.0:
+        lo, hi = args.ema_band
+        before = np.nanmedian(np.linalg.norm(np.diff(kp_new[:, :, :2], axis=0), axis=2))
+        kp_new = ema_fuse(kp_new, lo, hi, args.ema)
+        after = np.nanmedian(np.linalg.norm(np.diff(kp_new[:, :, :2], axis=0), axis=2))
+        print(f"temporal EMA alpha={args.ema} on the {lo}-{hi} confidence band: "
+              f"median frame-to-frame motion {before:.2f} -> {after:.2f} px", flush=True)
+
+    # What actually reaches the screen. NaN fails the comparison, so unplaced channels
+    # are excluded automatically. Reported because every stage above can remove points
+    # and the arithmetic across stages is not obvious.
+    vis = kp_new[:, :, 2] >= args.pcutoff
+    body_ch = [i for i in range(n_kpt) if i not in set(rend.face_indices)]
+    print(f"DRAWN at pcutoff {args.pcutoff}: {vis.sum(1).mean():.1f} of {n_kpt} per frame"
+          f"  ({vis[:, rend.face_indices].sum(1).mean():.1f}/{len(rend.face_indices)} face,"
+          f" {vis[:, body_ch].sum(1).mean():.1f}/{len(body_ch)} body-only)", flush=True)
 
     # ---- render ----
     n_new = n_kpt - rend.n_sa
@@ -196,25 +437,34 @@ def main():
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     vw = cv2.VideoWriter(args.out, fourcc, fps, (out_w, H))
     vw_solo = cv2.VideoWriter(args.also_solo, fourcc, fps, (W, H)) if args.also_solo else None
-    leg = [("SuperAnimal body (39)", SA_COLOR)] + [(f"{k} (DogFLW)", v) for k, v in REGION_COLOR.items()]
+    # Region names as the legend, ordered head-to-tail so it reads like the animal.
+    leg = ([(k, REGION_COLOR[k]) for k in
+            ("ear", "head", "eye", "nose", "muzzle", "mouth") if k in REGION_COLOR]
+           + [("body / skeleton", SA_COLOR)])
+    show_legend = args.legend or not args.bare
+    lines = not args.no_lines
     inset_size = int(H * 0.42)
     for i, fr in enumerate(frames):
         right = fr.copy()
         kn = np.nan_to_num(kp_new[i], nan=-1)
-        rend.draw(right, kn, pcut=args.pcutoff, r=3)
-        if not args.no_inset:
+        rend.draw(right, kn, pcut=args.pcutoff, r=3, lines=lines)
+        if not args.no_inset and not args.bare:
             ins = face_inset(fr, kn, rend, args.pcutoff, size=inset_size)
             if ins is not None:
                 right[H - inset_size - 12:H - 12, 12:12 + inset_size] = ins
-        banner(right, "Fine-tuned: SuperAnimal-Quadruped + DogFLW face",
-               f"{n_kpt} keypoints  =  39 body  +  {n_new} added facial landmarks")
-        legend(right, leg, (W - 235, 60))
+        if not args.bare:
+            banner(right, "Fine-tuned: SuperAnimal-Quadruped + DogFLW face",
+                   f"{n_kpt} keypoints  =  39 body  +  {n_new} added facial landmarks")
+        if show_legend:
+            legend(right, leg, (W - 235, 34 if args.bare else 60))
         if args.compare:
             left = fr.copy()
             k39 = np.nan_to_num(kp_old[i], nan=-1)
             pad = np.full((n_kpt, 3), -1.0); pad[:39] = k39
-            rend.draw(left, pad, pcut=args.pcutoff, r=3)
-            banner(left, "Original: SuperAnimal-Quadruped (HRNet-w32)", "39 keypoints, no facial landmarks")
+            rend.draw(left, pad, pcut=args.pcutoff, r=3, lines=lines)
+            if not args.bare:
+                banner(left, "Original: SuperAnimal-Quadruped (HRNet-w32)",
+                       "39 keypoints, no facial landmarks")
             frame = np.hstack([left, right])
             cv2.line(frame, (W, 0), (W, H), (255, 255, 255), 2)
         else:

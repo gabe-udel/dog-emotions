@@ -1,17 +1,48 @@
 """Extract DogFLW from the Kaggle zip: PNG -> JPEG (native resolution, coords unchanged)."""
-import io, json, sys, zipfile
+import argparse, io, json, sys, zipfile
 from pathlib import Path
 from PIL import Image
 
-ZIP = Path("/tmp/dogflw.zip")
+# Default lives inside the project rather than /tmp so it works on Windows too.
+ZIP = Path("data/dogflw.zip")
 OUT = Path("data/dogflw")
+KAGGLE_URL = "https://www.kaggle.com/datasets/georgemartvel/dogflw"
+
+
+def find_zip() -> Path | None:
+    """Look where a browser download would plausibly have left the Kaggle zip."""
+    seen = set()
+    for d in (Path("data"), Path("."), Path.home() / "Downloads", Path.home() / "Desktop"):
+        if not d.is_dir():
+            continue
+        for p in sorted(d.glob("*.zip")):
+            if p in seen:
+                continue
+            seen.add(p)
+            if "dogflw" in p.name.lower():
+                return p
+    return None
+
 
 def main():
-    z = zipfile.ZipFile(ZIP)
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--zip", type=Path, default=None,
+                    help=f"DogFLW Kaggle zip (default: {ZIP}, else auto-found in Downloads)")
+    ap.add_argument("--out", type=Path, default=OUT, help=f"output dir (default: {OUT})")
+    args = ap.parse_args()
+    out = args.out
+
+    zip_path = args.zip or (ZIP if ZIP.exists() else find_zip())
+    if zip_path is None or not zip_path.exists():
+        sys.exit(f"DogFLW zip not found (looked in data\\, .\\, ~/Downloads, ~/Desktop).\n"
+                 f"Download it from {KAGGLE_URL}\n"
+                 f"then re-run, or pass --zip <path>.")
+    print(f"reading {zip_path}  ({zip_path.stat().st_size/1e6:.0f} MB)", flush=True)
+    z = zipfile.ZipFile(zip_path)
     names = z.namelist()
     recs = []
     for split in ("train", "test"):
-        (OUT / "images" / split).mkdir(parents=True, exist_ok=True)
+        (out / "images" / split).mkdir(parents=True, exist_ok=True)
         imgs = sorted(n for n in names if f"/{split}/images/" in n and n.endswith(".png"))
         for i, n in enumerate(imgs):
             stem = Path(n).stem
@@ -33,7 +64,7 @@ def main():
                 bbox_src = "derived"
             im = Image.open(io.BytesIO(z.read(n))).convert("RGB")
             rel = f"images/{split}/{stem}.jpg"
-            im.save(OUT / rel, "JPEG", quality=95, subsampling=0)
+            im.save(out / rel, "JPEG", quality=95, subsampling=0)
             recs.append({
                 "id": stem, "split": split, "file": rel,
                 "width": im.width, "height": im.height,
@@ -42,7 +73,7 @@ def main():
             })
             if i % 500 == 0:
                 print(f"{split} {i}/{len(imgs)}", flush=True)
-    (OUT / "annotations.json").write_text(json.dumps(recs))
+    (out / "annotations.json").write_text(json.dumps(recs))
     n_tr = sum(r["split"] == "train" for r in recs)
     print(f"DONE train={n_tr} test={len(recs)-n_tr} total={len(recs)}")
 

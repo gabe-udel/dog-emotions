@@ -1,5 +1,5 @@
 {
-  "n_keypoints": 76,
+  "n_keypoints": 63,
   "bodyparts": [
     "nose",
     "upper_jaw",
@@ -42,24 +42,12 @@
     "body_middle_left",
     "ear_right_inner_base",
     "ear_left_inner_base",
-    "ear_right_inner_mid",
-    "ear_left_inner_mid",
-    "ear_right_inner_low",
-    "ear_left_inner_low",
-    "ear_right_outer_low",
-    "ear_left_outer_low",
-    "ear_right_outer_mid",
-    "ear_left_outer_mid",
-    "ear_right_outer_base",
-    "ear_left_outer_base",
     "head_top_right",
     "head_top_left",
     "eye_right_medial",
     "eye_left_medial",
     "eye_right_lateral",
     "eye_left_lateral",
-    "eye_right_upper_lid",
-    "eye_left_upper_lid",
     "nose_bridge",
     "nose_top",
     "nostril_right",
@@ -73,15 +61,14 @@
     "philtrum",
     "lip_upper_right",
     "lip_upper_left",
-    "chin_upper",
     "lip_lower_right",
     "lip_lower_left",
     "lip_lower_center"
   ],
   "supervision": {
-    "gt": 199378,
+    "gt": 143026,
     "pseudo": 75363,
-    "masked": 54719
+    "masked": 54716
   },
   "box_source": {
     "detector_contains_face": 4011,

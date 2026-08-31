@@ -68,8 +68,13 @@ class Renderer:
         self.n_sa = len(self.sa_bodyparts)
         self.sa_edges = [(self.idx[a], self.idx[b]) for a, b in SA_EDGES
                          if a in self.idx and b in self.idx]
-        self.face_contours = [[self.d2m[i] for i in c] for c in FACE_CONTOURS]
-        self.face_indices = sorted({self.d2m[i] for i in range(46)})
+        # A trimmed map (analyze_correspondence.py --trim) has no channel for the dropped
+        # contour points, so skip them rather than KeyError. A contour reduced to a single
+        # surviving point draws nothing.
+        self.face_contours = [seg for seg in
+                              ([self.d2m[i] for i in c if i in self.d2m] for c in FACE_CONTOURS)
+                              if len(seg) > 1]
+        self.face_indices = sorted(set(self.d2m.values()))
 
     def colour_of(self, model_idx: int):
         for di, mi in self.d2m.items():
@@ -77,21 +82,29 @@ class Renderer:
                 return REGION_COLOR[self.regions[self.dogflw_names[di]]]
         return SA_COLOR
 
-    def draw(self, img, kpts, pcut=0.25, r=3, thick=1, face_only=False, scale=1.0):
-        """kpts: (K,3) x,y,score in image coordinates. Draws in place."""
+    def draw(self, img, kpts, pcut=0.25, r=3, thick=1, face_only=False, scale=1.0,
+             lines=True):
+        """kpts: (K,3) x,y,score in image coordinates. Draws in place.
+
+        lines=False draws bare points with no skeleton edges or face contours. The
+        contours connect landmarks in an assumed order, so where a landmark is
+        misplaced the line exaggerates it into a visible spike - points alone show
+        the model's actual output.
+        """
         vis = kpts[:, 2] >= pcut
         s = max(1, int(round(scale)))
-        if not face_only:
+        if lines and not face_only:
             for a, b in self.sa_edges:
                 if vis[a] and vis[b]:
                     cv2.line(img, tuple(kpts[a, :2].astype(int)), tuple(kpts[b, :2].astype(int)),
                              SA_EDGE_COLOR, thick * s, cv2.LINE_AA)
-        for c in self.face_contours:
-            for a, b in zip(c[:-1], c[1:]):
-                if vis[a] and vis[b]:
-                    col = self.colour_of(a) if self.colour_of(a) == self.colour_of(b) else (200, 200, 200)
-                    cv2.line(img, tuple(kpts[a, :2].astype(int)), tuple(kpts[b, :2].astype(int)),
-                             col, max(1, thick * s), cv2.LINE_AA)
+        if lines:
+            for c in self.face_contours:
+                for a, b in zip(c[:-1], c[1:]):
+                    if vis[a] and vis[b]:
+                        col = self.colour_of(a) if self.colour_of(a) == self.colour_of(b) else (200, 200, 200)
+                        cv2.line(img, tuple(kpts[a, :2].astype(int)), tuple(kpts[b, :2].astype(int)),
+                                 col, max(1, thick * s), cv2.LINE_AA)
         for i in range(len(kpts)):
             if not vis[i]:
                 continue

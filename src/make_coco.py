@@ -9,7 +9,7 @@ Supervision per keypoint (COCO visibility flag):
         neither invents a label nor pushes the channel to background.
 """
 from __future__ import annotations
-import json, sys
+import argparse, json, subprocess, sys
 from pathlib import Path
 import numpy as np
 sys.path.insert(0, "src")
@@ -18,9 +18,38 @@ PSEUDO_THRESH = 0.4          # min SuperAnimal score for a pseudo-label to be us
 OUT = Path("dlc_project")
 
 
+def link_dir(link: Path, target: Path) -> str:
+    """Point `link` at `target` without copying 349 MB of JPEGs.
+
+    Plain symlinks need Developer Mode or elevation on Windows (WinError 1314), so fall
+    back to a directory junction, which any user may create. Copying is the last resort.
+    """
+    try:
+        link.symlink_to(target)
+        return "symlink"
+    except OSError:
+        pass
+    if sys.platform == "win32":
+        r = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(target)],
+                           capture_output=True, text=True)
+        if r.returncode == 0:
+            return "junction"
+    import shutil
+    shutil.copytree(target, link)
+    return "copy"
+
+
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--map", type=Path, default=Path("data/keypoint_map.json"),
+                    help="keypoint map from analyze_correspondence.py")
+    ap.add_argument("--out", type=Path, default=OUT,
+                    help="project dir to write annotations/ into")
+    args = ap.parse_args()
+    out_dir = args.out
+
     recs = json.load(open("data/dogflw/annotations.json"))
-    km = json.load(open("data/keypoint_map.json"))
+    km = json.load(open(args.map))
     z = np.load("data/sa_dogboxes.npz", allow_pickle=True)
     boxes, srcs, poses = z["boxes"], z["srcs"], z["poses"]
 
@@ -31,10 +60,11 @@ def main():
     n_kpt = len(bodyparts)
     print(f"{n_kpt} keypoints = 39 SuperAnimal + {len(new_idx)} added DogFLW")
 
-    (OUT / "annotations").mkdir(parents=True, exist_ok=True)
-    img_link = OUT / "images"
+    (out_dir / "annotations").mkdir(parents=True, exist_ok=True)
+    img_link = out_dir / "images"
     if not img_link.exists():
-        img_link.symlink_to(Path("data/dogflw/images").resolve())
+        how = link_dir(img_link, Path("data/dogflw/images").resolve())
+        print(f"dlc_project/images -> data/dogflw/images ({how})")
 
     stats = {"gt": 0, "pseudo": 0, "masked": 0}
     out = {"train": {"images": [], "annotations": []}, "test": {"images": [], "annotations": []}}
@@ -90,7 +120,7 @@ def main():
             "keypoints": bodyparts, "skeleton": []}]
     for split in ("train", "test"):
         out[split]["categories"] = cat
-        (OUT / "annotations" / f"{split}.json").write_text(json.dumps(out[split]))
+        (out_dir / "annotations" / f"{split}.json").write_text(json.dumps(out[split]))
         print(f"  {split}: {len(out[split]['images'])} images")
 
     tot = sum(stats.values())

@@ -6,11 +6,12 @@ are mutual nearest neighbours AND their median separation is under MERGE_THRESH 
 face-bbox diagonal.  Everything else becomes an added keypoint.
 """
 from __future__ import annotations
-import json, sys
+import argparse, json, sys
+from pathlib import Path
 import numpy as np
 sys.path.insert(0, "src")
 import superanimal as sa
-from keypoint_scheme import DOGFLW_NAMES, REGION_OF
+from keypoint_scheme import DOGFLW_NAMES, REGION_OF, TRIM_DROP, TRIM_KEEP
 
 MERGE_THRESH = 0.05     # fraction of the face-bbox diagonal
 MIN_SA_CONF = 0.3       # only trust SuperAnimal keypoints it is reasonably sure about
@@ -24,6 +25,16 @@ NO_MERGE = {"right_antler_base", "right_antler_end", "left_antler_base", "left_a
 
 
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--trim", action="store_true",
+                    help="drop dense contour points (keypoint_scheme.TRIM_DROP): 76 -> 63 outputs")
+    ap.add_argument("--out", type=Path, default=None,
+                    help="output map (default: data/keypoint_map.json, "
+                         "or data/keypoint_map_trim.json with --trim)")
+    args = ap.parse_args()
+    out_path = args.out or Path("data/keypoint_map_trim.json" if args.trim
+                                else "data/keypoint_map.json")
+
     recs = json.load(open("data/dogflw/annotations.json"))
     z = np.load("data/sa_dogboxes.npz", allow_pickle=True)
     P, srcs = z["poses"], z["srcs"]
@@ -62,6 +73,17 @@ def main():
             merge[j] = i
 
     new_idx = [i for i in range(46) if i not in set(merge.values())]
+    if args.trim:
+        dropped = [i for i in new_idx if i in TRIM_DROP]
+        new_idx = [i for i in new_idx if i in TRIM_KEEP]
+        print(f"\n--trim: dropping {len(dropped)} added contour channels: "
+              f"{', '.join(f'{i} {DOGFLW_NAMES[i]}' for i in dropped)}")
+        # A merged landmark is DogFLW ground truth sitting on a *SuperAnimal* channel, so
+        # trimming one would not remove an output - only downgrade it to a pseudo-label.
+        still = sorted(set(merge.values()) & TRIM_DROP)
+        if still:
+            print(f"  (kept as merged, costs no channel: "
+                  f"{', '.join(f'{i} {DOGFLW_NAMES[i]}' for i in still)})")
 
     # Warm start for the added output channels: the heatmap head is a 1x1 conv over the
     # 32-channel HRNet feature map, so copying the filter of the *spatially nearest*
@@ -74,8 +96,11 @@ def main():
     bodyparts = list(bps) + [DOGFLW_NAMES[i] for i in new_idx]
     # where each of the 46 DogFLW landmarks ends up in the final model output
     inv_merge = {int(i): j for j, i in merge.items()}
+    # With --trim some landmarks map to no output channel at all, so they are simply
+    # absent here; consumers must treat this as a lookup that can miss, not a dense list.
+    supervised = set(inv_merge) | set(new_idx)
     dogflw_to_model = {i: (inv_merge[i] if i in inv_merge else 39 + new_idx.index(i))
-                       for i in range(46)}
+                       for i in range(46) if i in supervised}
     out = {
         "superanimal_bodyparts": list(bps),
         "merge_sa_to_dogflw": {bps[j]: int(i) for j, i in merge.items()},
@@ -90,8 +115,11 @@ def main():
         "init_donor_idx": {str(i): j for i, j in donors.items()},
         "new_kpt_donor_dist": {DOGFLW_NAMES[i]: float(med[j, i]) for i, j in donors.items()},
     }
-    json.dump(out, open("data/keypoint_map.json", "w"), indent=2)
-    print("\nwrote data/keypoint_map.json")
+    out["trimmed"] = bool(args.trim)
+    out["dropped_dogflw_indices"] = sorted(TRIM_DROP) if args.trim else []
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    json.dump(out, open(out_path, "w"), indent=2)
+    print(f"\nwrote {out_path}")
 
 
 if __name__ == "__main__":

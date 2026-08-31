@@ -20,9 +20,38 @@ sys.path.insert(0, "src")
 PROJECT = Path("dlc_project")
 
 
+def default_workers() -> int:
+    """DataLoader workers.
+
+    Windows has no fork(): each worker re-imports this module under `spawn`, which costs
+    seconds per epoch and makes the albumentations/OpenCV stack in the workers a known
+    hang risk. Default to in-process loading there; override with --workers.
+    """
+    return 0 if sys.platform == "win32" else 2
+
+
+def keep_awake():
+    """Stop Windows sleeping mid-run.
+
+    A 3-epoch phase 2 that should have taken 43 minutes took 14 hours because the
+    machine slept unattended. This is process-scoped - it lapses automatically when
+    training exits, unlike editing the power plan.
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        ES_CONTINUOUS, ES_SYSTEM_REQUIRED = 0x80000000, 0x00000001
+        if ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED):
+            print("[power] sleep suppressed for the duration of this run", flush=True)
+    except Exception as e:                      # never let this stop training
+        print(f"[power] could not suppress sleep: {e}", flush=True)
+
+
 def build_config(n_kpt: int, bodyparts: list[str], crop: int, batch_size: int,
                  epochs: int, lr_backbone: float, lr_head: float, save_epochs: int,
-                 detector: str) -> dict:
+                 detector: str, workers: int, pos_dist_thresh: int,
+                 eval_every: int = 0, max_snapshots: int = 2) -> dict:
     from deeplabcut.core.config import read_config_as_dict
     import deeplabcut.pose_estimation_pytorch.config.utils as config_utils
     from deeplabcut.pose_estimation_pytorch.modelzoo.utils import get_super_animal_model_config_path
@@ -33,6 +62,14 @@ def build_config(n_kpt: int, bodyparts: list[str], crop: int, batch_size: int,
     cfg["device"] = "cpu"
     cfg["detector"] = read_config_as_dict(get_super_animal_model_config_path(detector))
     cfg["model"] = config_utils.replace_default_values(cfg["model"], num_bodyparts=n_kpt)
+    # SuperAnimal ships pos_dist_thresh=17 (sigma ~11.3 px in the 256 crop, ~2.8 px on the
+    # 64x64 heatmap). The face fills ~39 px of that grid and carries 46 landmarks, so at 17
+    # neighbouring targets overlap almost entirely and the model cannot separate them.
+    tg = cfg["model"]["heads"]["bodypart"]["target_generator"]
+    if tg.get("pos_dist_thresh") != pos_dist_thresh:
+        print(f"[targets] pos_dist_thresh {tg.get('pos_dist_thresh')} -> {pos_dist_thresh}",
+              flush=True)
+    tg["pos_dist_thresh"] = pos_dist_thresh
     cfg["metadata"] = {
         "project_path": str(PROJECT.resolve()),
         "pose_config_path": str((PROJECT / "train" / "pytorch_config.yaml").resolve()),
@@ -46,12 +83,15 @@ def build_config(n_kpt: int, bodyparts: list[str], crop: int, batch_size: int,
     cfg["data"]["train"]["top_down_crop"] = dict(box)
     cfg["data"]["inference"]["top_down_crop"] = dict(box)
     cfg["train_settings"].update(batch_size=batch_size, epochs=epochs,
-                                 dataloader_workers=2, display_iters=25, seed=42)
+                                 dataloader_workers=workers, display_iters=25, seed=42)
     cfg["runner"]["optimizer"] = {"type": "AdamW",
                                   "params": {"lr": lr_backbone, "head_lr": lr_head}}
     cfg["runner"]["scheduler"] = None
-    cfg["runner"]["eval_interval"] = 10_000          # we evaluate separately, see evaluate.py
-    cfg["runner"]["snapshots"] = {"max_snapshots": 2, "save_epochs": save_epochs,
+    # eval_every=1 scores the held-out split after every epoch. Without it the only
+    # signal is train loss, which cannot distinguish learning from memorising - so
+    # there is no way to tell when more epochs stop helping.
+    cfg["runner"]["eval_interval"] = eval_every if eval_every > 0 else 10_000
+    cfg["runner"]["snapshots"] = {"max_snapshots": max_snapshots, "save_epochs": save_epochs,
                                   "save_optimizer_state": False}
     return cfg
 
@@ -109,7 +149,19 @@ def main():
     ap.add_argument("--run-name", default="phase1")
     ap.add_argument("--save-epochs", type=int, default=1)
     ap.add_argument("--detector", default="fasterrcnn_mobilenet_v3_large_fpn")
+    ap.add_argument("--workers", type=int, default=default_workers(),
+                    help="DataLoader workers (default: 0 on Windows, 2 elsewhere)")
+    ap.add_argument("--pos-dist-thresh", type=int, default=17,
+                    help="heatmap target width; 17 is SuperAnimal's body-pose default, "
+                         "lower is sharper and suits dense facial landmarks")
+    ap.add_argument("--eval-every", type=int, default=0,
+                    help="score the held-out split every N epochs (1 = every epoch). "
+                         "0 disables it, leaving train loss as the only signal")
+    ap.add_argument("--max-snapshots", type=int, default=2,
+                    help="how many epoch checkpoints to keep; raise it to keep every "
+                         "epoch so the best one can be picked afterwards")
     args = ap.parse_args()
+    keep_awake()
 
     from deeplabcut.pose_estimation_pytorch import COCOLoader, utils
     from deeplabcut.pose_estimation_pytorch.apis.training import train
@@ -119,7 +171,9 @@ def main():
     km = json.load(open("data/keypoint_map.json"))
     bodyparts = km["bodyparts"]
     cfg = build_config(len(bodyparts), bodyparts, args.crop, args.batch_size, args.epochs,
-                       args.lr_backbone, args.lr_head, args.save_epochs, args.detector)
+                       args.lr_backbone, args.lr_head, args.save_epochs, args.detector,
+                       args.workers, args.pos_dist_thresh,
+                       args.eval_every, args.max_snapshots)
 
     # Loader.model_folder is derived from metadata.pose_config_path, so the run folder
     # is chosen by pointing that at the config we are about to write.
@@ -137,7 +191,8 @@ def main():
 
     patch_optimizer(args.unfreeze)
     print(f"[train] {len(bodyparts)} keypoints | crop {args.crop} | batch {args.batch_size} "
-          f"| epochs {args.epochs} | unfreeze={args.unfreeze}", flush=True)
+          f"| epochs {args.epochs} | unfreeze={args.unfreeze} | workers={args.workers}",
+          flush=True)
     t = time.time()
     train(loader=loader, run_config=loader.model_cfg, task=Task.TOP_DOWN, device="cpu",
           snapshot_path=args.snapshot)

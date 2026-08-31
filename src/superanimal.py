@@ -5,7 +5,11 @@ import numpy as np
 
 SUPER_ANIMAL = "superanimal_quadruped"
 POSE_MODEL = "hrnet_w32"                      # model registered for superanimal_quadruped in DLC 3.0.1
-DETECTOR = "fasterrcnn_resnet50_fpn_v2"
+# mobilenet, not resnet50_fpn_v2: CLAUDE.md §3 benchmarked it at 0.31 s/img with 12/12
+# recall vs 3.64 s/img and 9/12, and every caller (build_dogboxes, run_video, evaluate)
+# already overrode the old default to this. Keeping resnet50 here only had the effect of
+# making snapshot_paths() download a ~170 MB detector nothing uses.
+DETECTOR = "fasterrcnn_mobilenet_v3_large_fpn"
 
 
 def sa_bodyparts() -> list[str]:

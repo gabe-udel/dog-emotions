@@ -6,7 +6,7 @@ everything it already knows) and each added channel is warm-started from its nea
 SuperAnimal keypoint, plus a little noise so the copies are not degenerate.
 """
 from __future__ import annotations
-import json, sys
+import argparse, json, sys
 from pathlib import Path
 import torch
 sys.path.insert(0, "src")
@@ -19,7 +19,14 @@ NOISE = 1e-3
 
 
 def main():
-    km = json.load(open("data/keypoint_map.json"))
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--map", type=Path, default=Path("data/keypoint_map.json"),
+                    help="keypoint map from analyze_correspondence.py")
+    ap.add_argument("--out", type=Path, default=OUT)
+    args = ap.parse_args()
+    out = args.out
+
+    km = json.load(open(args.map))
     new_idx = km["new_dogflw_indices"]
     donors = [int(km["init_donor_idx"][str(i)]) for i in new_idx]
     n_new = len(new_idx)
@@ -40,12 +47,12 @@ def main():
 
     sd[W], sd[B] = new_w, new_b
     snap["metadata"] = {"epoch": 0}      # start the fine-tune at epoch 0
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(snap, OUT)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(snap, out)
 
     print(f"head {tuple(w.shape)} -> {tuple(new_w.shape)}   bias {tuple(b.shape)} -> {tuple(new_b.shape)}")
     print(f"39 pretrained channels copied verbatim; {n_new} added channels warm-started")
-    print("wrote", OUT, f"({OUT.stat().st_size/1e6:.1f} MB)")
+    print("wrote", out, f"({out.stat().st_size/1e6:.1f} MB)")
 
 
 if __name__ == "__main__":

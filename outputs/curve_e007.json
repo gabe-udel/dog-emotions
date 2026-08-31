@@ -1,0 +1,734 @@
+{
+  "n_images": 200,
+  "landmarks": [
+    {
+      "dogflw_idx": 0,
+      "name": "ear_right_inner_base",
+      "region": "ear",
+      "model_idx": 39,
+      "added": true,
+      "nme": 0.05676809890726446,
+      "median": 0.05427360028116026,
+      "pck05": 0.47,
+      "pck10": 0.91
+    },
+    {
+      "dogflw_idx": 1,
+      "name": "ear_left_inner_base",
+      "region": "ear",
+      "model_idx": 40,
+      "added": true,
+      "nme": 0.06043914161754674,
+      "median": 0.057950588400827535,
+      "pck05": 0.4,
+      "pck10": 0.92
+    },
+    {
+      "dogflw_idx": 2,
+      "name": "ear_right_inner_mid",
+      "region": "ear",
+      "model_idx": 41,
+      "added": true,
+      "nme": 0.08837334718318968,
+      "median": 0.08252272290537563,
+      "pck05": 0.2,
+      "pck10": 0.685
+    },
+    {
+      "dogflw_idx": 3,
+      "name": "ear_left_inner_mid",
+      "region": "ear",
+      "model_idx": 42,
+      "added": true,
+      "nme": 0.09153806487141704,
+      "median": 0.08357332776332832,
+      "pck05": 0.17,
+      "pck10": 0.65
+    },
+    {
+      "dogflw_idx": 4,
+      "name": "ear_right_inner_low",
+      "region": "ear",
+      "model_idx": 43,
+      "added": true,
+      "nme": 0.11747440330117144,
+      "median": 0.10074888277613786,
+      "pck05": 0.11,
+      "pck10": 0.5
+    },
+    {
+      "dogflw_idx": 5,
+      "name": "ear_left_inner_low",
+      "region": "ear",
+      "model_idx": 44,
+      "added": true,
+      "nme": 0.11763437231113921,
+      "median": 0.0963468207500603,
+      "pck05": 0.105,
+      "pck10": 0.545
+    },
+    {
+      "dogflw_idx": 6,
+      "name": "ear_right_tip",
+      "region": "ear",
+      "model_idx": 7,
+      "added": false,
+      "nme": 0.060867945642063666,
+      "median": 0.026891067432641337,
+      "pck05": 0.74,
+      "pck10": 0.875,
+      "nme_original": 0.05092029798377057,
+      "pck10_original": 0.9
+    },
+    {
+      "dogflw_idx": 7,
+      "name": "ear_left_tip",
+      "region": "ear",
+      "model_idx": 12,
+      "added": false,
+      "nme": 0.07096115282128361,
+      "median": 0.025713475204196506,
+      "pck05": 0.725,
+      "pck10": 0.805,
+      "nme_original": 0.06308905093444302,
+      "pck10_original": 0.825
+    },
+    {
+      "dogflw_idx": 8,
+      "name": "ear_right_outer_low",
+      "region": "ear",
+      "model_idx": 45,
+      "added": true,
+      "nme": 0.11759627514451246,
+      "median": 0.10301479325508339,
+      "pck05": 0.115,
+      "pck10": 0.475
+    },
+    {
+      "dogflw_idx": 9,
+      "name": "ear_left_outer_low",
+      "region": "ear",
+      "model_idx": 46,
+      "added": true,
+      "nme": 0.1206392006009164,
+      "median": 0.1047930830938871,
+      "pck05": 0.175,
+      "pck10": 0.465
+    },
+    {
+      "dogflw_idx": 10,
+      "name": "ear_right_outer_mid",
+      "region": "ear",
+      "model_idx": 47,
+      "added": true,
+      "nme": 0.16282858046667661,
+      "median": 0.15030169827193574,
+      "pck05": 0.065,
+      "pck10": 0.235
+    },
+    {
+      "dogflw_idx": 11,
+      "name": "ear_left_outer_mid",
+      "region": "ear",
+      "model_idx": 48,
+      "added": true,
+      "nme": 0.12196414242389167,
+      "median": 0.11478520064393151,
+      "pck05": 0.045,
+      "pck10": 0.375
+    },
+    {
+      "dogflw_idx": 12,
+      "name": "ear_right_outer_base",
+      "region": "ear",
+      "model_idx": 49,
+      "added": true,
+      "nme": 0.09007785252150509,
+      "median": 0.08339482729994523,
+      "pck05": 0.24,
+      "pck10": 0.595
+    },
+    {
+      "dogflw_idx": 13,
+      "name": "ear_left_outer_base",
+      "region": "ear",
+      "model_idx": 50,
+      "added": true,
+      "nme": 0.0887110512636016,
+      "median": 0.08787177900090784,
+      "pck05": 0.245,
+      "pck10": 0.62
+    },
+    {
+      "dogflw_idx": 14,
+      "name": "head_top_right",
+      "region": "head",
+      "model_idx": 51,
+      "added": true,
+      "nme": 0.1319785206870677,
+      "median": 0.1311577321791827,
+      "pck05": 0.005,
+      "pck10": 0.09
+    },
+    {
+      "dogflw_idx": 15,
+      "name": "head_top_left",
+      "region": "head",
+      "model_idx": 52,
+      "added": true,
+      "nme": 0.12772423221666188,
+      "median": 0.12702405702092534,
+      "pck05": 0.0,
+      "pck10": 0.105
+    },
+    {
+      "dogflw_idx": 16,
+      "name": "eye_right_medial",
+      "region": "eye",
+      "model_idx": 53,
+      "added": true,
+      "nme": 0.028592540637777403,
+      "median": 0.025736398362259456,
+      "pck05": 0.945,
+      "pck10": 0.99
+    },
+    {
+      "dogflw_idx": 17,
+      "name": "eye_left_medial",
+      "region": "eye",
+      "model_idx": 54,
+      "added": true,
+      "nme": 0.033620639373158255,
+      "median": 0.030861425747166854,
+      "pck05": 0.915,
+      "pck10": 0.99
+    },
+    {
+      "dogflw_idx": 18,
+      "name": "eye_right_lateral",
+      "region": "eye",
+      "model_idx": 55,
+      "added": true,
+      "nme": 0.033764178832164884,
+      "median": 0.03252210395263139,
+      "pck05": 0.94,
+      "pck10": 0.995
+    },
+    {
+      "dogflw_idx": 19,
+      "name": "eye_left_lateral",
+      "region": "eye",
+      "model_idx": 56,
+      "added": true,
+      "nme": 0.030793515386110117,
+      "median": 0.028282762437308075,
+      "pck05": 0.945,
+      "pck10": 0.985
+    },
+    {
+      "dogflw_idx": 20,
+      "name": "eye_right_upper_lid",
+      "region": "eye",
+      "model_idx": 57,
+      "added": true,
+      "nme": 0.0295223573337106,
+      "median": 0.02826597126719277,
+      "pck05": 0.975,
+      "pck10": 0.99
+    },
+    {
+      "dogflw_idx": 21,
+      "name": "eye_left_upper_lid",
+      "region": "eye",
+      "model_idx": 58,
+      "added": true,
+      "nme": 0.029555492415163018,
+      "median": 0.028201176386923637,
+      "pck05": 0.965,
+      "pck10": 0.99
+    },
+    {
+      "dogflw_idx": 22,
+      "name": "eye_right_lower_lid",
+      "region": "eye",
+      "model_idx": 5,
+      "added": false,
+      "nme": 0.022242514951813154,
+      "median": 0.01929768863877622,
+      "pck05": 0.975,
+      "pck10": 0.995,
+      "nme_original": 0.02414979323413503,
+      "pck10_original": 0.995
+    },
+    {
+      "dogflw_idx": 23,
+      "name": "eye_left_lower_lid",
+      "region": "eye",
+      "model_idx": 10,
+      "added": false,
+      "nme": 0.02276630335288413,
+      "median": 0.01987172946867955,
+      "pck05": 0.975,
+      "pck10": 0.99,
+      "nme_original": 0.024069358341358225,
+      "pck10_original": 0.99
+    },
+    {
+      "dogflw_idx": 24,
+      "name": "nose_bridge",
+      "region": "nose",
+      "model_idx": 59,
+      "added": true,
+      "nme": 0.0376559680908692,
+      "median": 0.03246018205008396,
+      "pck05": 0.765,
+      "pck10": 0.985
+    },
+    {
+      "dogflw_idx": 25,
+      "name": "nose_top",
+      "region": "nose",
+      "model_idx": 60,
+      "added": true,
+      "nme": 0.02303713043355076,
+      "median": 0.01829457162786139,
+      "pck05": 0.965,
+      "pck10": 0.985
+    },
+    {
+      "dogflw_idx": 26,
+      "name": "nostril_right",
+      "region": "nose",
+      "model_idx": 61,
+      "added": true,
+      "nme": 0.02773865838781388,
+      "median": 0.023823782141911283,
+      "pck05": 0.955,
+      "pck10": 0.995
+    },
+    {
+      "dogflw_idx": 27,
+      "name": "nostril_left",
+      "region": "nose",
+      "model_idx": 62,
+      "added": true,
+      "nme": 0.02724284229387166,
+      "median": 0.024347721864320104,
+      "pck05": 0.96,
+      "pck10": 0.985
+    },
+    {
+      "dogflw_idx": 28,
+      "name": "muzzle_right_upper",
+      "region": "muzzle",
+      "model_idx": 63,
+      "added": true,
+      "nme": 0.051809243887432556,
+      "median": 0.04770054218627576,
+      "pck05": 0.545,
+      "pck10": 0.975
+    },
+    {
+      "dogflw_idx": 29,
+      "name": "muzzle_left_upper",
+      "region": "muzzle",
+      "model_idx": 64,
+      "added": true,
+      "nme": 0.04731400433188969,
+      "median": 0.042855337487749515,
+      "pck05": 0.625,
+      "pck10": 0.965
+    },
+    {
+      "dogflw_idx": 30,
+      "name": "cheek_right",
+      "region": "muzzle",
+      "model_idx": 65,
+      "added": true,
+      "nme": 0.0674996875896047,
+      "median": 0.06779836301918846,
+      "pck05": 0.145,
+      "pck10": 0.975
+    },
+    {
+      "dogflw_idx": 31,
+      "name": "cheek_left",
+      "region": "muzzle",
+      "model_idx": 66,
+      "added": true,
+      "nme": 0.06931726889304159,
+      "median": 0.06734202256652157,
+      "pck05": 0.125,
+      "pck10": 0.965
+    },
+    {
+      "dogflw_idx": 32,
+      "name": "nose_bottom",
+      "region": "nose",
+      "model_idx": 0,
+      "added": false,
+      "nme": 0.0164617708955739,
+      "median": 0.013629645026987977,
+      "pck05": 0.99,
+      "pck10": 0.995,
+      "nme_original": 0.017837299954335056,
+      "pck10_original": 0.995
+    },
+    {
+      "dogflw_idx": 33,
+      "name": "nose_right_lower",
+      "region": "nose",
+      "model_idx": 67,
+      "added": true,
+      "nme": 0.02146436784544232,
+      "median": 0.018033992968021807,
+      "pck05": 0.985,
+      "pck10": 0.995
+    },
+    {
+      "dogflw_idx": 34,
+      "name": "nose_left_lower",
+      "region": "nose",
+      "model_idx": 68,
+      "added": true,
+      "nme": 0.021179905643401695,
+      "median": 0.016249801018801073,
+      "pck05": 0.965,
+      "pck10": 0.99
+    },
+    {
+      "dogflw_idx": 35,
+      "name": "philtrum",
+      "region": "mouth",
+      "model_idx": 69,
+      "added": true,
+      "nme": 0.01716873602044925,
+      "median": 0.013139343475651634,
+      "pck05": 0.985,
+      "pck10": 0.995
+    },
+    {
+      "dogflw_idx": 36,
+      "name": "lip_upper_right",
+      "region": "mouth",
+      "model_idx": 70,
+      "added": true,
+      "nme": 0.02855775048217568,
+      "median": 0.024325736100656907,
+      "pck05": 0.93,
+      "pck10": 0.995
+    },
+    {
+      "dogflw_idx": 37,
+      "name": "lip_upper_left",
+      "region": "mouth",
+      "model_idx": 71,
+      "added": true,
+      "nme": 0.032218810721681305,
+      "median": 0.026097835128307163,
+      "pck05": 0.895,
+      "pck10": 0.985
+    },
+    {
+      "dogflw_idx": 38,
+      "name": "mouth_center",
+      "region": "mouth",
+      "model_idx": 1,
+      "added": false,
+      "nme": 0.02279670418712249,
+      "median": 0.01466282681581575,
+      "pck05": 0.935,
+      "pck10": 0.97,
+      "nme_original": 0.020748716673632765,
+      "pck10_original": 0.995
+    },
+    {
+      "dogflw_idx": 39,
+      "name": "mouth_corner_right",
+      "region": "mouth",
+      "model_idx": 3,
+      "added": false,
+      "nme": 0.06328120464966512,
+      "median": 0.05425559982454732,
+      "pck05": 0.435,
+      "pck10": 0.87,
+      "nme_original": 0.06286820275203184,
+      "pck10_original": 0.87
+    },
+    {
+      "dogflw_idx": 40,
+      "name": "mouth_corner_left",
+      "region": "mouth",
+      "model_idx": 4,
+      "added": false,
+      "nme": 0.06946554090520983,
+      "median": 0.05426148091900415,
+      "pck05": 0.45,
+      "pck10": 0.805,
+      "nme_original": 0.04958203183203784,
+      "pck10_original": 0.94
+    },
+    {
+      "dogflw_idx": 41,
+      "name": "chin_upper",
+      "region": "mouth",
+      "model_idx": 72,
+      "added": true,
+      "nme": 0.025448124049576294,
+      "median": 0.01751512455286157,
+      "pck05": 0.92,
+      "pck10": 0.97
+    },
+    {
+      "dogflw_idx": 42,
+      "name": "chin_bottom",
+      "region": "mouth",
+      "model_idx": 2,
+      "added": false,
+      "nme": 0.0289947655372903,
+      "median": 0.019495353158316096,
+      "pck05": 0.905,
+      "pck10": 0.965,
+      "nme_original": 0.03348641609407055,
+      "pck10_original": 0.965
+    },
+    {
+      "dogflw_idx": 43,
+      "name": "lip_lower_right",
+      "region": "mouth",
+      "model_idx": 73,
+      "added": true,
+      "nme": 0.06571169013682249,
+      "median": 0.061796556904571975,
+      "pck05": 0.34,
+      "pck10": 0.9
+    },
+    {
+      "dogflw_idx": 44,
+      "name": "lip_lower_left",
+      "region": "mouth",
+      "model_idx": 74,
+      "added": true,
+      "nme": 0.06783859709358218,
+      "median": 0.06510269266131835,
+      "pck05": 0.325,
+      "pck10": 0.895
+    },
+    {
+      "dogflw_idx": 45,
+      "name": "lip_lower_center",
+      "region": "mouth",
+      "model_idx": 75,
+      "added": true,
+      "nme": 0.02622755850955591,
+      "median": 0.01450518562470893,
+      "pck05": 0.935,
+      "pck10": 0.945
+    }
+  ],
+  "superanimal_drift": {
+    "nose": {
+      "median_shift": 0.018817377136250195,
+      "conf_original": 0.8939846158027649,
+      "conf_finetuned": 0.6613034605979919
+    },
+    "upper_jaw": {
+      "median_shift": 0.0173473111417461,
+      "conf_original": 0.866472601890564,
+      "conf_finetuned": 0.6423293948173523
+    },
+    "lower_jaw": {
+      "median_shift": 0.028054164699408003,
+      "conf_original": 0.7634434700012207,
+      "conf_finetuned": 0.6495682001113892
+    },
+    "mouth_end_right": {
+      "median_shift": 0.05613835713171583,
+      "conf_original": 0.6893042922019958,
+      "conf_finetuned": 0.3602946698665619
+    },
+    "mouth_end_left": {
+      "median_shift": 0.06632651829530097,
+      "conf_original": 0.6614797115325928,
+      "conf_finetuned": 0.3515470325946808
+    },
+    "right_eye": {
+      "median_shift": 0.0,
+      "conf_original": 0.9103882312774658,
+      "conf_finetuned": 0.6125941276550293
+    },
+    "right_earbase": {
+      "median_shift": 0.0,
+      "conf_original": 0.708398699760437,
+      "conf_finetuned": 0.5921887755393982
+    },
+    "right_earend": {
+      "median_shift": 0.013713915207336643,
+      "conf_original": 0.8318185210227966,
+      "conf_finetuned": 0.4275364279747009
+    },
+    "right_antler_base": {
+      "median_shift": 0.0,
+      "conf_original": 0.6588804721832275,
+      "conf_finetuned": 0.6004701852798462
+    },
+    "right_antler_end": {
+      "median_shift": 0.0,
+      "conf_original": 0.5422930717468262,
+      "conf_finetuned": 0.8513842821121216
+    },
+    "left_eye": {
+      "median_shift": 0.0,
+      "conf_original": 0.9123587608337402,
+      "conf_finetuned": 0.6349504590034485
+    },
+    "left_earbase": {
+      "median_shift": 0.0,
+      "conf_original": 0.716130793094635,
+      "conf_finetuned": 0.5805461406707764
+    },
+    "left_earend": {
+      "median_shift": 0.019218040068994743,
+      "conf_original": 0.8285582661628723,
+      "conf_finetuned": 0.46541211009025574
+    },
+    "left_antler_base": {
+      "median_shift": 0.0,
+      "conf_original": 0.6524375677108765,
+      "conf_finetuned": 0.5854027271270752
+    },
+    "left_antler_end": {
+      "median_shift": 0.0,
+      "conf_original": 0.5635412931442261,
+      "conf_finetuned": 0.8082066774368286
+    },
+    "neck_base": {
+      "median_shift": 0.0,
+      "conf_original": 0.6718294620513916,
+      "conf_finetuned": 0.6151666641235352
+    },
+    "neck_end": {
+      "median_shift": 0.0,
+      "conf_original": 0.6714118719100952,
+      "conf_finetuned": 0.6787426471710205
+    },
+    "throat_base": {
+      "median_shift": 0.0,
+      "conf_original": 0.672025740146637,
+      "conf_finetuned": 0.6463626623153687
+    },
+    "throat_end": {
+      "median_shift": 0.0,
+      "conf_original": 0.6616970896720886,
+      "conf_finetuned": 0.5874457359313965
+    },
+    "back_base": {
+      "median_shift": 0.0,
+      "conf_original": 0.700687050819397,
+      "conf_finetuned": 0.6749953627586365
+    },
+    "back_end": {
+      "median_shift": 0.0,
+      "conf_original": 0.682923436164856,
+      "conf_finetuned": 0.6359758377075195
+    },
+    "back_middle": {
+      "median_shift": 0.0,
+      "conf_original": 0.7116593718528748,
+      "conf_finetuned": 0.5737452507019043
+    },
+    "tail_base": {
+      "median_shift": 0.0,
+      "conf_original": 0.687880277633667,
+      "conf_finetuned": 0.6363120675086975
+    },
+    "tail_end": {
+      "median_shift": 0.0,
+      "conf_original": 0.7559317350387573,
+      "conf_finetuned": 0.7065567374229431
+    },
+    "front_left_thai": {
+      "median_shift": 0.0,
+      "conf_original": 0.7518596649169922,
+      "conf_finetuned": 0.6567589044570923
+    },
+    "front_left_knee": {
+      "median_shift": 0.0,
+      "conf_original": 0.7392817735671997,
+      "conf_finetuned": 0.6751174330711365
+    },
+    "front_left_paw": {
+      "median_shift": 0.0,
+      "conf_original": 0.8237475156784058,
+      "conf_finetuned": 0.7252203822135925
+    },
+    "front_right_thai": {
+      "median_shift": 0.0,
+      "conf_original": 0.7467294931411743,
+      "conf_finetuned": 0.6273713707923889
+    },
+    "front_right_knee": {
+      "median_shift": 0.0,
+      "conf_original": 0.7409217357635498,
+      "conf_finetuned": 0.6404818296432495
+    },
+    "front_right_paw": {
+      "median_shift": 0.0,
+      "conf_original": 0.8032513856887817,
+      "conf_finetuned": 0.7255623936653137
+    },
+    "back_left_paw": {
+      "median_shift": 0.0,
+      "conf_original": 0.7999192476272583,
+      "conf_finetuned": 0.6979377269744873
+    },
+    "back_left_thai": {
+      "median_shift": 0.0,
+      "conf_original": 0.6676597595214844,
+      "conf_finetuned": 0.5795577168464661
+    },
+    "back_right_thai": {
+      "median_shift": 0.014712274951827562,
+      "conf_original": 0.6537138223648071,
+      "conf_finetuned": 0.5662940740585327
+    },
+    "back_left_knee": {
+      "median_shift": 0.0,
+      "conf_original": 0.7130187749862671,
+      "conf_finetuned": 0.6575942635536194
+    },
+    "back_right_knee": {
+      "median_shift": 0.0,
+      "conf_original": 0.742557168006897,
+      "conf_finetuned": 0.663191020488739
+    },
+    "back_right_paw": {
+      "median_shift": 0.0,
+      "conf_original": 0.8024823665618896,
+      "conf_finetuned": 0.7136627435684204
+    },
+    "belly_bottom": {
+      "median_shift": 0.0,
+      "conf_original": 0.6714642643928528,
+      "conf_finetuned": 0.6222441792488098
+    },
+    "body_middle_right": {
+      "median_shift": 0.0,
+      "conf_original": 0.6146959066390991,
+      "conf_finetuned": 0.6180011034011841
+    },
+    "body_middle_left": {
+      "median_shift": 0.0,
+      "conf_original": 0.6097339391708374,
+      "conf_finetuned": 0.6229617595672607
+    }
+  },
+  "summary": {
+    "added_nme": 0.06316287437582183,
+    "added_pck05": 0.5512162162162162,
+    "added_pck10": 0.8002702702702702,
+    "kept_nme": 0.041981989215878465,
+    "kept_nme_original": 0.03852790753331277,
+    "median_sa_drift": 0.0
+  }
+}
