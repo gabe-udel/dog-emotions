@@ -4,6 +4,14 @@ Takes the released **DeepLabCut SuperAnimal-Quadruped** pose model and re-trains
 predicts, in addition to its 39 body keypoints, the facial landmarks of the **DogFLW**
 (Dog Facial Landmarks in the Wild) dataset — then runs the result on a dog-walking video.
 
+> ### Just want to run it?
+> **[SETUP.md](SETUP.md)** — three steps, no terminal. The trained checkpoint is 113 MB,
+> over GitHub's file limit, so it comes from the
+> [Releases page](https://github.com/gabe-udel/dog-emotions/releases) rather than the repo.
+>
+> **[CLAUDE.md](CLAUDE.md)** is the full handoff: results, what was tried, what failed,
+> and §11 on the four inference-time fixes that most of the accuracy came from.
+
 ## What was downloaded
 
 | thing | source | notes |

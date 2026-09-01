@@ -210,8 +210,22 @@ class App:
 
         missing = [p for p in (PY, SCRIPT) if not p.exists()]
         if missing or not self.models:
-            if not self.models:
-                self.write(f"No .pt model files found in {WEIGHTS}\n")
+            # A fresh clone has neither the venv nor the checkpoints - the .pt files are
+            # 113 MB, over GitHub's per-file limit, so they ship as a Release instead.
+            # Say exactly which piece is absent and where it comes from.
+            if not PY.exists():
+                self.write(
+                    "The Python environment is not built yet.\n\n"
+                    "  Close this window and double-click  setup.bat\n"
+                    "  (one time, 5-15 minutes - it downloads about 1 GB)\n\n")
+            elif not self.models:
+                self.write(
+                    f"No model files (.pt) found in:\n  {WEIGHTS}\n\n"
+                    "The trained model is 113 MB, over GitHub's 100 MB file limit, so it\n"
+                    "is not in the repository. Download it from the Releases page:\n\n"
+                    "  https://github.com/gabe-udel/dog-emotions/releases\n\n"
+                    "Save  superanimal_quadruped_dogface_final.pt  into the folder above,\n"
+                    "then reopen this app. The .yaml config beside it is already there.\n\n")
             for p in missing:
                 self.write(f"Missing: {p}\n")
             self.btn_pick.configure(state="disabled")

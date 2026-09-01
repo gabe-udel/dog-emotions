@@ -14,9 +14,14 @@ archive.zip
 data/dogflw.zip
 *.zip
 
-# Model snapshots (118 MB each). Rebuild with src/extend_head.py + src/train_dogface.py
+# Model snapshots (113 MB each - over GitHub's 100 MB per-file limit, so they cannot be
+# committed at all). Distributed as a GitHub Release instead; see SETUP.md.
+# Rebuild from scratch with src/extend_head.py + src/train_dogface.py (~2 days on CPU).
 *.pt
-model_weights/
+
+# NOT ignored, deliberately: model_weights/*.yaml. Those are 7 KB each and the app cannot
+# build an inference runner without pytorch_config.yaml - a blanket model_weights/ rule
+# silently shipped a broken clone.
 
 # Third-party demo videos (50 MB) and scratch frames.
 # Note: must be videos/* not videos/ - git cannot re-include a file whose parent dir is excluded.
