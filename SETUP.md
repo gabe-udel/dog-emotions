@@ -23,8 +23,21 @@ over 100 MB, so it ships as a release asset instead:
 
 > **https://github.com/gabe-udel/dog-emotions/releases**
 
-Download **`superanimal_quadruped_dogface_final.pt`** and drop it into the
-`model_weights/` folder, next to the `.yaml` files that are already there.
+Download **`superanimal_quadruped_dogface_final.zip`** (104 MB), then **unzip it** and put
+`superanimal_quadruped_dogface_final.pt` into the `model_weights/` folder, beside the
+`.yaml` files already there.
+
+It is zipped because GitHub Releases only accepts a fixed list of file extensions and
+`.pt` is not among them. Nothing else about it is special — the archive holds one file.
+
+`model_weights/` should then look like:
+
+```
+model_weights/
+  pytorch_config.yaml                        (in the repo)
+  superanimal_quadruped_dogface_sigma8.yaml  (in the repo)
+  superanimal_quadruped_dogface_final.pt     (you just added this)
+```
 
 That is the only file you need. The other two checkpoints are a failed experiment
 (`_sigma8`) and an untrained reference (`_hrnet_w32_dogface`), kept for comparison and

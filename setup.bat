@@ -83,12 +83,15 @@ if not exist "model_weights\superanimal_quadruped_dogface_final.pt" (
   echo   Environment is ready, but the trained model is NOT here yet.
   echo.
   echo   The checkpoint is 113 MB, over GitHub's 100 MB file limit, so it
-  echo   is not in the repository. Download it from the Releases page:
+  echo   is not in the repository. Get it from the Releases page:
   echo.
   echo       https://github.com/gabe-udel/dog-emotions/releases
   echo.
-  echo   Save superanimal_quadruped_dogface_final.pt into:
+  echo   Download superanimal_quadruped_dogface_final.zip, unzip it, and put
+  echo   the .pt file inside into:
   echo       %CD%\model_weights\
+  echo.
+  echo   ^(It is zipped only because Releases rejects the .pt extension.^)
   echo.
   echo   Then double-click "Dog Keypoints App.bat".
   echo   ================================================================

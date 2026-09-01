@@ -222,10 +222,12 @@ class App:
                 self.write(
                     f"No model files (.pt) found in:\n  {WEIGHTS}\n\n"
                     "The trained model is 113 MB, over GitHub's 100 MB file limit, so it\n"
-                    "is not in the repository. Download it from the Releases page:\n\n"
+                    "is not in the repository. Get it from the Releases page:\n\n"
                     "  https://github.com/gabe-udel/dog-emotions/releases\n\n"
-                    "Save  superanimal_quadruped_dogface_final.pt  into the folder above,\n"
-                    "then reopen this app. The .yaml config beside it is already there.\n\n")
+                    "Download  superanimal_quadruped_dogface_final.zip,  unzip it, and put\n"
+                    "the .pt file inside into the folder above, then reopen this app.\n"
+                    "(It is zipped only because GitHub Releases rejects the .pt extension.)\n"
+                    "The .yaml config it needs is already in the repository.\n\n")
             for p in missing:
                 self.write(f"Missing: {p}\n")
             self.btn_pick.configure(state="disabled")
