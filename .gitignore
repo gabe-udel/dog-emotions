@@ -41,8 +41,20 @@ videos/*
 # Editor state
 .vscode/
 
-# Derived training data - regenerated in seconds by src/make_coco.py
+# Derived training data and training runs.
+# face_project/ holds the generated COCO annotations (regenerated in seconds by
+# src/build_face_coco.py) and the training snapshots, which are 113 MB each.
+# dlc_project/ is the old unified model's equivalent, kept ignored so an existing
+# working tree does not suddenly start offering it.
+face_project/
 dlc_project/
+
+# Split definition IS tracked: it is small, and an untracked split means nobody can
+# reproduce a reported number. Regenerate with src/splits.py --seed.
+!data/splits.json
+
+# pytest
+.pytest_cache/
 
 # Rendered demo videos
 outputs/*.mp4

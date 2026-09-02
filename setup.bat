@@ -78,22 +78,25 @@ echo   verifying ...
 if errorlevel 1 goto :failed
 
 echo.
-if not exist "model_weights\superanimal_quadruped_dogface_final.pt" (
+dir /b face_project\*\snapshot-*.pt model_weights\*.pt >nul 2>&1
+if errorlevel 1 (
   echo   ================================================================
-  echo   Environment is ready, but the trained model is NOT here yet.
+  echo   Environment is ready, but there is NO face-model checkpoint yet.
   echo.
-  echo   The checkpoint is 113 MB, over GitHub's 100 MB file limit, so it
-  echo   is not in the repository. Get it from the Releases page:
+  echo   The architecture was rebuilt as a two-stage cascade and the face
+  echo   model has not been trained. Either train one ^(about a day on CPU^):
+  echo.
+  echo       .venv\Scripts\python.exe src\splits.py
+  echo       .venv\Scripts\python.exe src\build_face_coco.py
+  echo       .venv\Scripts\python.exe src\train_face.py --run-name face1
+  echo.
+  echo   ...which needs the DogFLW imagery ^(see SETUP.md^), or download a
+  echo   released checkpoint AND its pytorch_config.yaml into model_weights\:
   echo.
   echo       https://github.com/gabe-udel/dog-emotions/releases
   echo.
-  echo   Download superanimal_quadruped_dogface_final.zip, unzip it, and put
-  echo   the .pt file inside into:
-  echo       %CD%\model_weights\
-  echo.
-  echo   ^(It is zipped only because Releases rejects the .pt extension.^)
-  echo.
-  echo   Then double-click "Dog Keypoints App.bat".
+  echo   The body model needs nothing - stage 1 is stock SuperAnimal and
+  echo   downloads itself on first run.
   echo   ================================================================
 ) else (
   echo   Setup complete. Double-click "Dog Keypoints App.bat" to start.

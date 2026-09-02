@@ -20,64 +20,44 @@ from tkinter import filedialog, messagebox, ttk
 ROOT = Path(__file__).resolve().parent.parent
 PY = ROOT / ".venv" / "Scripts" / "python.exe"
 WEIGHTS = ROOT / "model_weights"
-FALLBACK_CONFIG = WEIGHTS / "pytorch_config.yaml"
+FACE_PROJECT = ROOT / "face_project"
 SCRIPT = ROOT / "src" / "run_video.py"
 OUTDIR = ROOT / "outputs"
 VIDEO_TYPES = [("Video files", "*.mp4 *.mov *.avi *.mkv *.m4v *.webm *.wmv"),
                ("All files", "*.*")]
 
-# Friendly names, and a short tag that goes into the output filename so two models
-# run on the same clip do not overwrite each other.
-KNOWN = {
-    "superanimal_quadruped_dogface_final":
-        ("Fine-tuned  (sigma 17)  -  recommended, draws all 46", "s17"),
-    "superanimal_quadruped_dogface_sigma8":
-        ("Fine-tuned  (sigma 8)  -  hides its own weak points", "s8"),
-    "superanimal_quadruped_hrnet_w32_dogface":
-        ("Untrained warm start  (reference only)", "warmstart"),
-}
-
-# Display order, best first. sigma 17 leads on COVERAGE, which is what matters when a
-# person is judging the output by eye. Measured on video, points drawn out of 46 at
-# cutoff 0.30: sigma 17 draws 46.0, sigma 8 draws 33.5 - and of the 14 ear landmarks,
-# 14.0 versus 5.0. sigma 8 is genuinely better calibrated (its confidence tracks
-# correctness more sharply, bad/good 0.46 vs 0.75) and marginally better on eyes and
-# nose, but it expresses that by scoring its weak channels so low they disappear from
-# the display. Keep it for anyone who wants only high-trust points; not the default.
-PREFERRED = ["s17", "s8", "warmstart"]
-
-
-# There is no landmark-set control any more. It existed to hide points measured
-# unlearnable, and ear_correct.py fixed the last of those - the ear region went from
-# 0.0882 to 0.0631 NME, taking the two worst points to 0.066 and 0.080. All 46 face
-# landmarks are now worth drawing, so keypoint_scheme.UNRELIABLE is empty and
-# run_video.py's --landmarks flag has nothing to filter.
-
 # (label, extra run_video.py flags). First entry is the default.
+#
+# The old build offered a "side-by-side vs original" mode and a head-crop toggle. Both
+# belonged to the unified 76-channel model: the comparison contrasted it with stock
+# SuperAnimal, and the head crop was an optional second pass. The cascade always runs a
+# face crop and always runs stock SuperAnimal for the body, so neither has a job.
 DISPLAY_MODES = [
-    ("Points + colour legend", ["--bare", "--no-lines", "--legend"]),
-    ("Points + legend + skeleton lines", ["--bare", "--legend"]),
-    ("Everything: title, legend, face zoom", []),
-    ("Side-by-side vs original", ["--compare", "--bare", "--no-lines", "--legend"]),
+    ("Points + colour legend", ["--no-lines"]),
+    ("Points + legend + contour lines", []),
+    ("Face only, no body keypoints", ["--no-lines", "--no-body"]),
 ]
 
 
 def discover_models() -> list[tuple[str, Path, Path, str]]:
-    """(label, weights, config, tag) for every .pt in model_weights/.
+    """(label, snapshot, config, tag) for every face-model checkpoint on disk.
 
-    A model's config is <stem>.yaml when present, otherwise the shared
-    pytorch_config.yaml - the architecture only has to match the checkpoint.
+    Two places are searched: `face_project/<run>/` where training writes its snapshots
+    alongside the pytorch_config.yaml that describes them, and `model_weights/` for a
+    released checkpoint that ships with a matching .yaml. A snapshot is only offered if
+    its config can be found - the architecture has to match or loading fails obscurely.
     """
-    out = []
-    for pt in sorted(WEIGHTS.glob("*.pt")):
-        label, tag = KNOWN.get(pt.stem, (pt.stem, pt.stem[:12]))
-        cfg = pt.with_suffix(".yaml")
+    out: list[tuple[str, Path, Path, str]] = []
+    for run in sorted(FACE_PROJECT.glob("*/")):
+        cfg = run / "pytorch_config.yaml"
         if not cfg.exists():
-            cfg = FALLBACK_CONFIG
-        out.append((label, pt, cfg, tag))
-    # trained models first, warm start last
-    out.sort(key=lambda r: (PREFERRED.index(r[3]) if r[3] in PREFERRED else len(PREFERRED),
-                            r[0]))
+            continue
+        for pt in sorted(run.glob("snapshot-*.pt"), reverse=True):
+            out.append((f"{run.name} / {pt.stem}", pt, cfg, f"{run.name}-{pt.stem}"))
+    for pt in sorted(WEIGHTS.glob("*.pt")):
+        cfg = pt.with_suffix(".yaml")
+        if cfg.exists():
+            out.append((f"released / {pt.stem}", pt, cfg, pt.stem[:16]))
     return out
 
 
@@ -143,9 +123,6 @@ class App:
         crow = ttk.Frame(opts)
         crow.pack(fill="x", padx=10, pady=(0, 4))
         ttk.Label(crow, text="Hide keypoints below confidence:").pack(side="left")
-        # 0.35 is safe again now that "Reliable 32" removes the ear contours by
-        # measurement rather than by threshold: with sigma 17 + head-crop it still
-        # draws ~29 of the 30 detected landmarks. On "All 46" it costs ~3 ear points.
         self.pcut = tk.DoubleVar(value=0.35)
         self.pcut_lbl = ttk.Label(crow, text="0.35", width=5,
                                   font=("Consolas", 9), foreground="#2f6fb0")
@@ -154,32 +131,32 @@ class App:
                   command=lambda v: self.pcut_lbl.configure(
                       text=f"{float(v):.2f}")).pack(side="left", padx=(8, 6))
         self.pcut_lbl.pack(side="left")
+
         hrow = ttk.Frame(opts)
         hrow.pack(fill="x", padx=10, pady=(2, 0))
-        # Off by default. It measures ~18% better NME on the 30 reliable landmarks
-        # (0.0377 -> 0.0310) but that is ~1.3 px on a 220 px face, while it costs a lot
-        # of visible detail: with sub-pixel decoding on, pass 1 alone renders 44.4 of 46
-        # face landmarks at distinct pixels and the head-cropped pass only 25.4.
-        self.headcrop = tk.BooleanVar(value=False)
-        ttk.Checkbutton(hrow, variable=self.headcrop,
-                        text="Zoom to the head before placing face points (two-pass, slower)"
+        # Both corrections were fitted against the OLD unified model and have not been
+        # re-measured on the cascade, so both start off. Turning one on is an
+        # experiment, not an improvement, until evaluate_face.py says otherwise on val.
+        self.ear_correct = tk.BooleanVar(value=False)
+        ttk.Checkbutton(hrow, variable=self.ear_correct,
+                        text="Ear-type bias correction (unmeasured on this model)"
                         ).pack(side="left")
-        self.ema = tk.BooleanVar(value=True)
-        ttk.Checkbutton(hrow, variable=self.ema,
-                        text="Steady jittery points").pack(side="left", padx=(18, 0))
+        self.shape_refine = tk.BooleanVar(value=False)
+        ttk.Checkbutton(hrow, variable=self.shape_refine,
+                        text="Shape model for skull top (unmeasured)"
+                        ).pack(side="left", padx=(18, 0))
         ttk.Label(opts, foreground="#888", justify="left",
-                  text="Two-pass re-crops to the head so the face fills the share of the frame\n"
-                       "the model trained on. ~18% better NME on the reliable landmarks, but\n"
-                       "worth ~1 px on this footage - and it costs visible detail: 25 of 46\n"
-                       "face points land on distinct pixels versus 44 with it off. Leave it off\n"
-                       "unless you are measuring rather than looking.\n"
+                  text="The two checkboxes are carried over from the previous architecture and are\n"
+                       "OFF until re-measured. Both learn a correction to one specific model's\n"
+                       "errors, and this is a different model - fit them with postfit.py and score\n"
+                       "them with evaluate_face.py --split val before trusting either.\n"
                   ).pack(anchor="w", padx=10, pady=(0, 2))
         ttk.Label(opts, foreground="#888", justify="left",
-                  text="A visibility control, NOT a quality knob - measured on video, confidence\n"
-                       "runs opposite to accuracy. Raising it hides weak landmarks rather than\n"
-                       "improving them. With the settings above, 0.20 draws all 46 points; 0.30\n"
-                       "drops about 1 ear landmark in 10 and 0.35 drops 3 in 14.\n"
-                       "Roughly 1 second per frame; side-by-side runs both models, so about double."
+                  text="Confidence is a visibility control, NOT a quality knob - on the previous\n"
+                       "model it ran opposite to accuracy across crop scales. Raising it hides\n"
+                       "weak landmarks rather than improving them. That relationship has not been\n"
+                       "re-checked on the cascade either.\n"
+                       "Roughly 2 seconds per frame: two HRNet passes, body then face."
                   ).pack(anchor="w", padx=10, pady=(0, 8))
         self.compare = None      # superseded by the Display mode above
 
@@ -220,14 +197,17 @@ class App:
                     "  (one time, 5-15 minutes - it downloads about 1 GB)\n\n")
             elif not self.models:
                 self.write(
-                    f"No model files (.pt) found in:\n  {WEIGHTS}\n\n"
-                    "The trained model is 113 MB, over GitHub's 100 MB file limit, so it\n"
-                    "is not in the repository. Get it from the Releases page:\n\n"
-                    "  https://github.com/gabe-udel/dog-emotions/releases\n\n"
-                    "Download  superanimal_quadruped_dogface_final.zip,  unzip it, and put\n"
-                    "the .pt file inside into the folder above, then reopen this app.\n"
-                    "(It is zipped only because GitHub Releases rejects the .pt extension.)\n"
-                    "The .yaml config it needs is already in the repository.\n\n")
+                    "No face-model checkpoint found. Two places are searched:\n\n"
+                    f"  {FACE_PROJECT}\\<run>\\snapshot-*.pt   (written by training)\n"
+                    f"  {WEIGHTS}\\*.pt                        (a released checkpoint)\n\n"
+                    "A snapshot is only listed when a pytorch_config.yaml sits beside it,\n"
+                    "because the architecture has to match the weights.\n\n"
+                    "To train one (about a day on this CPU):\n\n"
+                    "  .venv\\Scripts\\python.exe src\\splits.py\n"
+                    "  .venv\\Scripts\\python.exe src\\build_face_coco.py\n"
+                    "  .venv\\Scripts\\python.exe src\\train_face.py --run-name face1\n\n"
+                    "Or download a released checkpoint into model_weights\\ along with its\n"
+                    ".yaml:\n\n  https://github.com/gabe-udel/dog-emotions/releases\n\n")
             for p in missing:
                 self.write(f"Missing: {p}\n")
             self.btn_pick.configure(state="disabled")
@@ -304,23 +284,23 @@ class App:
         _label, weights, config, tag = m
         # every option that changes the output goes into the filename, so runs with
         # different settings sit side by side instead of overwriting each other
-        if self.headcrop.get():
-            tag += "_hc"
+        if self.ear_correct.get():
+            tag += "_ear"
+        if self.shape_refine.get():
+            tag += "_shape"
 
         OUTDIR.mkdir(parents=True, exist_ok=True)
-        # tag in the name so running two models on one clip keeps both results
         self.out = OUTDIR / f"{self.video.stem}_{tag}.mp4"
         cmd = [str(PY), str(SCRIPT), "--video", str(self.video), "--out", str(self.out),
                "--config", str(config), "--snapshot", str(weights),
                "--width", "960", "--smooth", "3", "--max-frames", str(n),
-               "--pcutoff", f"{self.pcut.get():.2f}"]
+               "--pcut", f"{self.pcut.get():.2f}"]
         mi = self.mode_box.current()
         cmd += DISPLAY_MODES[mi if 0 <= mi < len(DISPLAY_MODES) else 0][1]
-        if self.headcrop.get():
-            # 0.55 = measured optimum; the scale gate skips frames already near it
-            cmd += ["--head-crop", "0.55", "--gate", "scale"]
-        if self.ema.get():
-            cmd += ["--ema", "0.5"]
+        if self.ear_correct.get():
+            cmd.append("--ear-correct")
+        if self.shape_refine.get():
+            cmd.append("--shape-refine")
 
         self.btn_run.configure(state="disabled")
         self.btn_pick.configure(state="disabled")

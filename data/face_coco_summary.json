@@ -1,0 +1,51 @@
+{
+  "face_box": {
+    "pad": 1.8,
+    "anchor_conf": 0.1,
+    "min_anchors": 3,
+    "min_side_px": 16.0,
+    "fallback": "dog_box_upper",
+    "fallback_frac": 0.55,
+    "square": true
+  },
+  "crop": {
+    "size": 256,
+    "border_value": 0
+  },
+  "splits": {
+    "train": {
+      "labelled": 150671,
+      "masked": 255,
+      "clipped_images": 74,
+      "no_landmarks": 2,
+      "n": 3281,
+      "derived": 3280,
+      "fallback": 1,
+      "failed": 0,
+      "fallback_rate": 0.00030478512648582747,
+      "failure_rate": 0.0
+    },
+    "val": {
+      "labelled": 26367,
+      "masked": 37,
+      "clipped_images": 15,
+      "n": 574,
+      "derived": 574,
+      "fallback": 0,
+      "failed": 0,
+      "fallback_rate": 0.0,
+      "failure_rate": 0.0
+    },
+    "test": {
+      "labelled": 22021,
+      "masked": 59,
+      "clipped_images": 10,
+      "n": 480,
+      "derived": 480,
+      "fallback": 0,
+      "failed": 0,
+      "fallback_rate": 0.0,
+      "failure_rate": 0.0
+    }
+  }
+}

@@ -29,18 +29,17 @@ INK, MUTED, RULE = "#14171F", "#6B7488", "#D8DEE8"
 MERGE_INK = "#1B6E9E"
 
 
-def merged_landmarks(path="data/keypoint_map.json"):
-    """DogFLW index -> the SuperAnimal keypoint it shares a channel with.
+def merged_landmarks(path=None):
+    """No landmark shares a channel any more.
 
-    A landmark is *merged* when analyze_correspondence.py found it was already predicted
-    by SuperAnimal, so it reuses that channel instead of adding one. Those channels
-    carry pretrained weights and DogFLW ground truth at once; the other 37 were added
-    and warm-started. That is why 46 landmarks need only 37 new outputs.
+    Under the unified 76-channel model, 9 DogFLW landmarks were *merged* onto existing
+    SuperAnimal channels so that 46 landmarks needed only 37 new outputs, and this
+    legend marked them with an asterisk. The cascade's face model has its own 46
+    independent channels and shares nothing with the body model, so the concept - and
+    the keypoint_map.json that encoded it - is gone. Kept as an empty mapping so the
+    layout code below stays unchanged.
     """
-    km = json.load(open(path))
-    d2m = {int(k): v for k, v in km["dogflw_to_model_idx"].items()}
-    sa = km["superanimal_bodyparts"]
-    return {d: sa[d2m[d]] for d in range(46) if d2m[d] < len(sa)}
+    return {}
 
 
 def mean_shape():
@@ -146,17 +145,13 @@ def main():
         axR.text(0.10, y, line, fontsize=8.8, color=MUTED, va="center")
         y -= 0.029
 
-    fig.suptitle("Dog face keypoints  —  76 outputs = 39 body + 37 added facial",
+    fig.suptitle("Dog face keypoints  —  46 facial landmarks + 39 body keypoints",
                  fontsize=20, fontweight="bold", color=INK, x=0.03, ha="left", y=0.965)
     fig.text(0.03, 0.905,
-             "46 DogFLW facial landmarks. The 9 marked * share a channel with an "
-             "existing SuperAnimal keypoint - they reuse pretrained weights rather than "
-             "adding an output - so only 37 channels were added.",
+             "The 46 DogFLW facial landmarks, predicted by the face model from a "
+             "face-filling crop. The 39 body keypoints come from a separate, unmodified "
+             "SuperAnimal-Quadruped pass over the whole dog.",
              fontsize=10.5, color=MUTED, ha="left", va="top")
-    fig.text(0.03, 0.028,
-             "*  merged channel: carries pretrained SuperAnimal weights and DogFLW "
-             "ground truth at once. Ringed in blue on the diagram.",
-             fontsize=9, color=MERGE_INK, ha="left", va="bottom")
 
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(a.out, facecolor="white", bbox_inches="tight", pad_inches=0.3)

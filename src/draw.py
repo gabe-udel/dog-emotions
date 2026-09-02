@@ -55,65 +55,70 @@ SA_EDGE_COLOR = (215, 165, 45)
 
 
 class Renderer:
-    def __init__(self, keypoint_map_path="data/keypoint_map.json"):
-        km = json.load(open(keypoint_map_path))
-        self.km = km
-        self.bodyparts = km["bodyparts"]
-        self.sa_bodyparts = km["superanimal_bodyparts"]
-        self.idx = {b: i for i, b in enumerate(self.bodyparts)}
-        self.d2m = {int(k): v for k, v in km["dogflw_to_model_idx"].items()}
-        self.regions = km["regions"]
-        from keypoint_scheme import DOGFLW_NAMES
+    """Draws a cascade result: 39 body keypoints and 46 face landmarks, kept separate.
+
+    The unified model needed a `dogflw_to_model_idx` map to find the face channels
+    inside a 76-output array. The cascade returns two arrays from two models, each in
+    its own natural ordering, so the indirection - and the keypoint_map.json it read -
+    is gone. Body index is SuperAnimal's 0..38; face index is DogFLW's 0..45.
+    """
+
+    def __init__(self, sa_bodyparts: list[str]):
+        from keypoint_scheme import DOGFLW_NAMES, REGION_OF
+        self.sa_bodyparts = list(sa_bodyparts)
+        self.idx = {b: i for i, b in enumerate(self.sa_bodyparts)}
         self.dogflw_names = DOGFLW_NAMES
-        self.n_sa = len(self.sa_bodyparts)
+        self.region_of = REGION_OF
         self.sa_edges = [(self.idx[a], self.idx[b]) for a, b in SA_EDGES
                          if a in self.idx and b in self.idx]
-        # A trimmed map (analyze_correspondence.py --trim) has no channel for the dropped
-        # contour points, so skip them rather than KeyError. A contour reduced to a single
-        # surviving point draws nothing.
-        self.face_contours = [seg for seg in
-                              ([self.d2m[i] for i in c if i in self.d2m] for c in FACE_CONTOURS)
-                              if len(seg) > 1]
-        self.face_indices = sorted(set(self.d2m.values()))
+        self.face_contours = [c for c in FACE_CONTOURS if len(c) > 1]
 
-    def colour_of(self, model_idx: int):
-        for di, mi in self.d2m.items():
-            if mi == model_idx and mi >= self.n_sa:
-                return REGION_COLOR[self.regions[self.dogflw_names[di]]]
-        return SA_COLOR
+    def face_colour(self, dogflw_idx: int):
+        return REGION_COLOR[self.region_of[dogflw_idx]]
 
-    def draw(self, img, kpts, pcut=0.25, r=3, thick=1, face_only=False, scale=1.0,
-             lines=True):
-        """kpts: (K,3) x,y,score in image coordinates. Draws in place.
+    def draw(self, img, body=None, face=None, pcut=0.25, r=3, thick=1, scale=1.0,
+             lines=True, face_only=False):
+        """Draw in place. `body` is (39,3), `face` is (46,3); either may be None.
 
         lines=False draws bare points with no skeleton edges or face contours. The
         contours connect landmarks in an assumed order, so where a landmark is
-        misplaced the line exaggerates it into a visible spike - points alone show
-        the model's actual output.
+        misplaced the line exaggerates it into a visible spike - points alone show the
+        model's actual output.
         """
-        vis = kpts[:, 2] >= pcut
         s = max(1, int(round(scale)))
-        if lines and not face_only:
-            for a, b in self.sa_edges:
-                if vis[a] and vis[b]:
-                    cv2.line(img, tuple(kpts[a, :2].astype(int)), tuple(kpts[b, :2].astype(int)),
-                             SA_EDGE_COLOR, thick * s, cv2.LINE_AA)
-        if lines:
-            for c in self.face_contours:
-                for a, b in zip(c[:-1], c[1:]):
+        if body is not None and not face_only:
+            vis = body[:, 2] >= pcut
+            if lines:
+                for a, b in self.sa_edges:
                     if vis[a] and vis[b]:
-                        col = self.colour_of(a) if self.colour_of(a) == self.colour_of(b) else (200, 200, 200)
-                        cv2.line(img, tuple(kpts[a, :2].astype(int)), tuple(kpts[b, :2].astype(int)),
-                                 col, max(1, thick * s), cv2.LINE_AA)
-        for i in range(len(kpts)):
-            if not vis[i]:
-                continue
-            if face_only and i not in self.face_indices:
-                continue
-            p = tuple(kpts[i, :2].astype(int))
-            cv2.circle(img, p, r * s + 1, (20, 20, 20), -1, cv2.LINE_AA)
-            cv2.circle(img, p, r * s, self.colour_of(i), -1, cv2.LINE_AA)
+                        cv2.line(img, tuple(body[a, :2].astype(int)),
+                                 tuple(body[b, :2].astype(int)),
+                                 SA_EDGE_COLOR, thick * s, cv2.LINE_AA)
+            for i in range(len(body)):
+                if vis[i]:
+                    self._dot(img, body[i, :2], SA_COLOR, r, s)
+
+        if face is not None:
+            vis = face[:, 2] >= pcut
+            if lines:
+                for c in self.face_contours:
+                    for a, b in zip(c[:-1], c[1:]):
+                        if a < len(face) and b < len(face) and vis[a] and vis[b]:
+                            ca, cb = self.face_colour(a), self.face_colour(b)
+                            cv2.line(img, tuple(face[a, :2].astype(int)),
+                                     tuple(face[b, :2].astype(int)),
+                                     ca if ca == cb else (200, 200, 200),
+                                     max(1, thick * s), cv2.LINE_AA)
+            for i in range(len(face)):
+                if vis[i]:
+                    self._dot(img, face[i, :2], self.face_colour(i), r, s)
         return img
+
+    @staticmethod
+    def _dot(img, xy, colour, r, s):
+        p = tuple(np.asarray(xy).astype(int))
+        cv2.circle(img, p, r * s + 1, (20, 20, 20), -1, cv2.LINE_AA)
+        cv2.circle(img, p, r * s, colour, -1, cv2.LINE_AA)
 
 
 def banner(img, text, sub=None, org=(18, 16), scale=0.62):
