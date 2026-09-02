@@ -1,7 +1,9 @@
 # CLAUDE.md — handoff notes
 
-Project state as of **2026-08-26, 18:30 EDT**. Work was **stopped mid-training on purpose**
-for this handoff. Read "Status" before running anything.
+Project state as of **2026-09-02**. Training is **finished and validated**; the model in use
+is `superanimal_quadruped_dogface_final.pt` (σ=17). Read §2 for what is and is not done, and
+**§12 for the current measured accuracy** — that section is the stable reference point, cut
+just before the planned face/body model separation.
 
 ---
 
@@ -71,7 +73,7 @@ CNN rather than inside it. See §11 — this is where most of the accuracy now c
 | item | state |
 |---|---|
 | Figure 3 (qualitative test predictions) | never run |
-| Two-model split (face + body, dual inference) | proposed, not built |
+| Two-model split (face + body, dual inference) | **the next planned change.** Branch `stable-pre-model-separation` marks the state before it; §12 has the numbers it must beat |
 | The DogFLW landmark manual | still behind a dead link; §6 naming remains inferred |
 
 ---
@@ -492,3 +494,69 @@ observable. `keypoint_scheme.UNRELIABLE` was 14 landmarks, then 2, and is now em
 Also worth carrying: on this model **confidence runs opposite to accuracy** across crop
 scales (0.807 at the worst, 0.589 at the best). It is a visibility control, never a
 quality signal — do not gate or tune anything by watching it rise.
+---
+
+## 12. Stable landmark — branch `stable-pre-model-separation`
+
+Cut **2026-09-02**, immediately before splitting the single shared-backbone model into
+separate face and body networks. Everything below is measured on this branch, not
+projected. **If the two-model architecture does not beat these numbers, come back here.**
+
+Branch name note: the request was `stable - pre model seperation`; git forbids spaces in
+ref names, so it is hyphenated, and "separation" is spelled correctly.
+
+### What "stable" means, exactly
+
+| | |
+|---|---|
+| base | SuperAnimal-Quadruped `hrnet_w32` + `fasterrcnn_mobilenet_v3_large_fpn`, DLC 3.0.1 / dlclibrary 0.0.12 |
+| checkpoint | `superanimal_quadruped_dogface_final.pt` — σ=17, 4 epochs |
+| architecture | **one** shared HRNet-W32 backbone (29,363,185 params) → **one** 1×1 `ConvTranspose2d(32→76)` head (2,508 params). 99.99% of the model is shared between face and body; a keypoint is a 32-number column. |
+| inference stack | sub-pixel decode → ear-type bias correction → skull-top shape model → 3-frame temporal median. Head crop **off**. |
+| fitted params, in repo | `data/ear_bias.pkl`, `data/shape_model.npz` — nothing needs refitting |
+
+### Accuracy — 479 held-out DogFLW test images, shipping config
+
+Reproduce with the scratch script pattern in §8; ear correction and shape refine both
+applied on 479/479.
+
+| region | n | NME ↓ | median | PCK@5% | PCK@10% | before ear/shape fix | change |
+|---|---|---|---|---|---|---|---|
+| eye | 8 | 0.0261 | 0.0252 | 96.7% | 99.6% | 0.0261 | — |
+| nose | 7 | 0.0269 | 0.0225 | 90.2% | 99.5% | 0.0269 | — |
+| mouth | 11 | 0.0325 | 0.0234 | 81.9% | 96.3% | 0.0325 | — |
+| muzzle | 4 | 0.0505 | 0.0506 | 49.0% | 98.6% | 0.0505 | — |
+| ear | 14 | 0.0631 | 0.0472 | 53.2% | 84.0% | 0.0882 | **−28.5%** |
+| head (skull top) | 2 | 0.0880 | 0.0884 | 8.9% | 65.1% | 0.1240 | **−29.0%** |
+| **ALL 46** | 46 | **0.0438** | 0.0319 | **71.0%** | **92.5%** | 0.0531 | **−17.4%** |
+| 37 added channels | 37 | 0.0458 | 0.0342 | 68.4% | 91.9% | | |
+| 9 merged channels | 9 | 0.0357 | 0.0215 | 81.4% | 94.9% | | |
+
+Read the last column carefully: it is **ear correction + shape model only**. Sub-pixel
+decoding (§11a) is already inside *both* columns, so its contribution is not shown here —
+measured separately it was NME 0.0329 → 0.0306 and face points 16 → 44 distinct.
+
+Best landmark `philtrum` 0.0117; worst `head_top_right` 0.0903. SuperAnimal body drift
+remains **0.0000**.
+
+### What is not on this branch
+
+The checkpoint (113 MB, over GitHub's per-file limit — it is a Release asset), DogFLW
+imagery (CC BY-NC 4.0, not ours to redistribute), `dlc_project/`, `.venv/`, demo videos.
+Everything needed to *run* the app is here except the checkpoint; see SETUP.md.
+
+### The bar the next architecture has to clear
+
+§11d is the only direct evidence for what a face-specific model buys: feeding tighter
+crops to *this* network was worth **~18% NME on the reliable landmarks**. Two caveats to
+judge the split against:
+
+- It **understates** the gain. This model was trained on whole-dog crops, so a tight crop
+  is out of distribution — that is why confidence fell and visible face points dropped
+  44 → 25. A network actually trained on face crops pays no such penalty.
+- It **does not touch the two worst regions**, which are 16 of the 46 landmarks. Ear error
+  moves 4% across a 3× crop range but 20% by ear type; the skull top has no local texture
+  at any resolution. Both were fixed after the CNN (§11b, §11c) and those fixes carry over
+  to any new architecture unchanged — so a face model should be compared against
+  **0.0438**, not against the raw CNN's 0.0531.
+

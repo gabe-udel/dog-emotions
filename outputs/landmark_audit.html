@@ -11,420 +11,156 @@
 
 <style>
 :root {
-  --ground:      #F5F7FA;
-  --panel:       #FFFFFF;
-  --panel-2:     #EDF1F6;
-  --ink:         #14171F;
-  --ink-2:       #3D4557;
-  --muted:       #6B7488;
-  --rule:        #D8DEE8;
-  --rule-strong: #B9C2D0;
-  --accent:      #1B6E9E;
-  --accent-soft: #DCEBF4;
-  --good:        #1B7A50;
-  --good-soft:   #DCEFE4;
-  --bad:         #B23A2B;
-  --bad-soft:    #F6E2DE;
-  --warn:        #98671A;
-  --warn-soft:   #F6EBD5;
-  /* the renderer's own region colours, so the report and the video agree */
-  --r-ear:    #E08A28;
-  --r-eye:    #A845C4;
-  --r-nose:   #3C9B46;
-  --r-muzzle: #A08A18;
-  --r-mouth:  #C1503C;
-  --r-body:   #2A7FA8;
+  --ground:#F5F7FA; --panel:#FFFFFF; --panel-2:#EDF1F6;
+  --ink:#14171F; --ink-2:#3D4557; --muted:#6B7488;
+  --rule:#D8DEE8; --rule-strong:#B9C2D0;
+  --accent:#1B6E9E; --accent-soft:#DCEBF4;
+  --good:#1B7A50; --good-soft:#DCEFE4;
+  --bad:#B23A2B; --bad-soft:#F6E2DE;
+  --warn:#98671A; --warn-soft:#F6EBD5;
+  --r-ear:#E08A28; --r-eye:#A845C4; --r-nose:#3C9B46;
+  --r-muzzle:#A08A18; --r-mouth:#C1503C; --r-body:#2A7FA8;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --ground:      #10131A;
-    --panel:       #171B24;
-    --panel-2:     #1E2330;
-    --ink:         #E6EAF2;
-    --ink-2:       #BAC2D2;
-    --muted:       #8B94A8;
-    --rule:        #2A3140;
-    --rule-strong: #3C4557;
-    --accent:      #5BB4DE;
-    --accent-soft: #17303E;
-    --good:        #52C68D;
-    --good-soft:   #14301F;
-    --bad:         #EE7B67;
-    --bad-soft:    #331A16;
-    --warn:        #DFAE4E;
-    --warn-soft:   #2E2412;
-    --r-ear:    #F0A94F;
-    --r-eye:    #C97BDE;
-    --r-nose:   #61C46C;
-    --r-muzzle: #C8AE3A;
-    --r-mouth:  #E0705C;
-    --r-body:   #4FA8D2;
+    --ground:#10131A; --panel:#171B24; --panel-2:#1E2330;
+    --ink:#E6EAF2; --ink-2:#BAC2D2; --muted:#8B94A8;
+    --rule:#2A3140; --rule-strong:#3C4557;
+    --accent:#5BB4DE; --accent-soft:#17303E;
+    --good:#52C68D; --good-soft:#14301F;
+    --bad:#EE7B67; --bad-soft:#331A16;
+    --warn:#DFAE4E; --warn-soft:#2E2412;
+    --r-ear:#F0A94F; --r-eye:#C97BDE; --r-nose:#61C46C;
+    --r-muzzle:#C8AE3A; --r-mouth:#E0705C; --r-body:#4FA8D2;
   }
 }
 :root[data-theme="dark"] {
-  --ground:      #10131A;
-  --panel:       #171B24;
-  --panel-2:     #1E2330;
-  --ink:         #E6EAF2;
-  --ink-2:       #BAC2D2;
-  --muted:       #8B94A8;
-  --rule:        #2A3140;
-  --rule-strong: #3C4557;
-  --accent:      #5BB4DE;
-  --accent-soft: #17303E;
-  --good:        #52C68D;
-  --good-soft:   #14301F;
-  --bad:         #EE7B67;
-  --bad-soft:    #331A16;
-  --warn:        #DFAE4E;
-  --warn-soft:   #2E2412;
-  --r-ear:    #F0A94F;
-  --r-eye:    #C97BDE;
-  --r-nose:   #61C46C;
-  --r-muzzle: #C8AE3A;
-  --r-mouth:  #E0705C;
-  --r-body:   #4FA8D2;
+  --ground:#10131A; --panel:#171B24; --panel-2:#1E2330;
+  --ink:#E6EAF2; --ink-2:#BAC2D2; --muted:#8B94A8;
+  --rule:#2A3140; --rule-strong:#3C4557;
+  --accent:#5BB4DE; --accent-soft:#17303E;
+  --good:#52C68D; --good-soft:#14301F;
+  --bad:#EE7B67; --bad-soft:#331A16;
+  --warn:#DFAE4E; --warn-soft:#2E2412;
+  --r-ear:#F0A94F; --r-eye:#C97BDE; --r-nose:#61C46C;
+  --r-muzzle:#C8AE3A; --r-mouth:#E0705C; --r-body:#4FA8D2;
 }
-
-* { box-sizing: border-box; }
-
+* { box-sizing:border-box; }
 body {
-  background: var(--ground);
-  color: var(--ink);
-  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-  font-size: 16.5px;
-  line-height: 1.62;
-  margin: 0;
-  padding: 0 20px 6rem;
-  -webkit-font-smoothing: antialiased;
+  background:var(--ground); color:var(--ink);
+  font-family:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  font-size:16.5px; line-height:1.62; margin:0; padding:0 20px 6rem;
+  -webkit-font-smoothing:antialiased;
 }
+.wrap { max-width:1080px; margin:0 auto; }
 
-.wrap { max-width: 1080px; margin: 0 auto; }
-.col  { max-width: 660px; }
+header.mast { padding:4.5rem 0 2.5rem; border-bottom:2px solid var(--ink); margin-bottom:3rem; }
+.eyebrow { font-family:"IBM Plex Mono",monospace; font-size:.72rem; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--muted); margin:0 0 1.1rem; }
+h1 { font-family:"Newsreader",ui-serif,Georgia,serif; font-weight:600;
+  font-size:clamp(2.4rem,6vw,3.6rem); line-height:1.04; letter-spacing:-.02em;
+  text-wrap:balance; margin:0 0 1.1rem; }
+.standfirst { font-family:"Newsreader",ui-serif,Georgia,serif;
+  font-size:clamp(1.1rem,2.4vw,1.32rem); line-height:1.5; color:var(--ink-2);
+  max-width:48ch; margin:0; }
+.mast-meta { display:flex; flex-wrap:wrap; gap:1.6rem; margin-top:2.2rem;
+  font-family:"IBM Plex Mono",monospace; font-size:.78rem; color:var(--muted); }
+.mast-meta b { color:var(--ink-2); font-weight:500; }
 
-/* ---------- masthead ---------- */
-header.mast {
-  padding: 4.5rem 0 2.5rem;
-  border-bottom: 2px solid var(--ink);
-  margin-bottom: 3rem;
-}
-.eyebrow {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 0.72rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin: 0 0 1.1rem;
-}
-h1 {
-  font-family: "Newsreader", ui-serif, Georgia, serif;
-  font-weight: 600;
-  font-size: clamp(2.4rem, 6vw, 3.6rem);
-  line-height: 1.04;
-  letter-spacing: -0.02em;
-  text-wrap: balance;
-  margin: 0 0 1.1rem;
-}
-.standfirst {
-  font-family: "Newsreader", ui-serif, Georgia, serif;
-  font-size: clamp(1.1rem, 2.4vw, 1.32rem);
-  line-height: 1.5;
-  color: var(--ink-2);
-  max-width: 46ch;
-  margin: 0;
-}
-.mast-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.6rem;
-  margin-top: 2.2rem;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 0.78rem;
-  color: var(--muted);
-}
-.mast-meta b { color: var(--ink-2); font-weight: 500; }
+section { margin:0 0 4.2rem; }
+h2 { font-family:"Newsreader",ui-serif,Georgia,serif; font-weight:600;
+  font-size:clamp(1.6rem,3.4vw,2.1rem); line-height:1.16; letter-spacing:-.015em;
+  text-wrap:balance; margin:0 0 .5rem; padding-top:1.1rem;
+  border-top:1px solid var(--rule-strong); }
+h3 { font-weight:600; font-size:1.02rem; margin:2.4rem 0 .6rem; color:var(--ink); }
+.kicker { font-family:"IBM Plex Mono",monospace; font-size:.72rem; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--accent); margin:0 0 .9rem; }
+p { margin:0 0 1.05rem; max-width:68ch; }
+a { color:var(--accent); text-underline-offset:2px; }
+code,.mono { font-family:"IBM Plex Mono",monospace; font-size:.88em; font-variant-numeric:tabular-nums; }
+p code,li code,td code { background:var(--panel-2); padding:.1em .36em; border-radius:3px;
+  border:1px solid var(--rule); }
+ul,ol { max-width:68ch; padding-left:1.15rem; margin:0 0 1.05rem; }
+li { margin-bottom:.42rem; }
 
-/* ---------- structure ---------- */
-section { margin: 0 0 4.2rem; }
-h2 {
-  font-family: "Newsreader", ui-serif, Georgia, serif;
-  font-weight: 600;
-  font-size: clamp(1.6rem, 3.4vw, 2.1rem);
-  line-height: 1.16;
-  letter-spacing: -0.015em;
-  text-wrap: balance;
-  margin: 0 0 0.5rem;
-  padding-top: 1.1rem;
-  border-top: 1px solid var(--rule-strong);
-}
-h3 {
-  font-family: "IBM Plex Sans", sans-serif;
-  font-weight: 600;
-  font-size: 1.02rem;
-  letter-spacing: 0.005em;
-  margin: 2.4rem 0 0.6rem;
-  color: var(--ink);
-}
-.kicker {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--accent);
-  margin: 0 0 0.9rem;
-}
-p { margin: 0 0 1.05rem; max-width: 68ch; }
-a { color: var(--accent); text-underline-offset: 2px; }
-strong { font-weight: 600; }
-code, .mono {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 0.88em;
-  font-variant-numeric: tabular-nums;
-}
-p code, li code, td code {
-  background: var(--panel-2);
-  padding: 0.1em 0.36em;
-  border-radius: 3px;
-  border: 1px solid var(--rule);
-}
-ul, ol { max-width: 68ch; padding-left: 1.15rem; margin: 0 0 1.05rem; }
-li { margin-bottom: 0.42rem; }
+.panel { background:var(--panel); border:1px solid var(--rule); border-radius:5px;
+  padding:1.35rem 1.5rem; margin:1.6rem 0 1.9rem; overflow-x:auto; }
+.panel-label { font-family:"IBM Plex Mono",monospace; font-size:.7rem; letter-spacing:.11em;
+  text-transform:uppercase; color:var(--muted); margin:0 0 .95rem;
+  display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
+table { border-collapse:collapse; width:100%; font-family:"IBM Plex Mono",monospace;
+  font-size:.82rem; font-variant-numeric:tabular-nums; }
+th { text-align:right; font-weight:500; color:var(--muted); padding:0 0 .55rem 1.1rem;
+  border-bottom:1px solid var(--rule-strong); white-space:nowrap; }
+th:first-child,td:first-child { text-align:left; padding-left:0; }
+td { text-align:right; padding:.42rem 0 .42rem 1.1rem; border-bottom:1px solid var(--rule);
+  white-space:nowrap; color:var(--ink-2); }
+tr:last-child td { border-bottom:none; }
+td:first-child { color:var(--ink); }
+.hi td { background:var(--accent-soft); }
+.hi td:first-child { font-weight:600; color:var(--ink); }
+.num-good { color:var(--good); font-weight:600; }
+.num-bad { color:var(--bad); font-weight:600; }
+.dim { color:var(--muted); }
+.sw { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:.5rem; }
+.bar-track { display:inline-block; width:120px; height:8px; background:var(--panel-2);
+  border-radius:2px; overflow:hidden; vertical-align:middle; margin-left:.5rem; }
+.bar-fill { display:block; height:100%; border-radius:2px; }
 
-/* ---------- data panels ---------- */
-.panel {
-  background: var(--panel);
-  border: 1px solid var(--rule);
-  border-radius: 5px;
-  padding: 1.35rem 1.5rem;
-  margin: 1.6rem 0 1.9rem;
-  overflow-x: auto;
-}
-.panel-label {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 0.7rem;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin: 0 0 0.95rem;
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
+.finding { border-left:3px solid var(--accent); background:var(--panel);
+  border-top:1px solid var(--rule); border-right:1px solid var(--rule);
+  border-bottom:1px solid var(--rule); border-radius:0 5px 5px 0;
+  padding:1.15rem 1.4rem; margin:1.7rem 0; }
+.finding.win { border-left-color:var(--good); }
+.finding.dead { border-left-color:var(--bad); }
+.finding.correction { border-left-color:var(--warn); background:var(--warn-soft); }
+.finding p:last-child { margin-bottom:0; }
+.finding .claim { font-weight:600; font-size:1.02rem; margin-bottom:.5rem; max-width:62ch; }
+.verdict { display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:.66rem;
+  letter-spacing:.1em; text-transform:uppercase; padding:.2em .55em; border-radius:3px;
+  margin-bottom:.7rem; }
+.v-win { background:var(--good-soft); color:var(--good); }
+.v-dead { background:var(--bad-soft); color:var(--bad); }
+.v-corr { background:var(--warn-soft); color:var(--warn); border:1px solid var(--warn); }
+.v-open { background:var(--accent-soft); color:var(--accent); }
 
-table {
-  border-collapse: collapse;
-  width: 100%;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 0.82rem;
-  font-variant-numeric: tabular-nums;
-}
-th {
-  text-align: right;
-  font-weight: 500;
-  color: var(--muted);
-  padding: 0 0 0.55rem 1.1rem;
-  border-bottom: 1px solid var(--rule-strong);
-  white-space: nowrap;
-}
-th:first-child, td:first-child { text-align: left; padding-left: 0; }
-td {
-  text-align: right;
-  padding: 0.42rem 0 0.42rem 1.1rem;
-  border-bottom: 1px solid var(--rule);
-  white-space: nowrap;
-  color: var(--ink-2);
-}
-tr:last-child td { border-bottom: none; }
-td:first-child { color: var(--ink); }
-.hi td { background: var(--accent-soft); }
-.hi td:first-child { font-weight: 600; color: var(--ink); }
-.num-good { color: var(--good); font-weight: 600; }
-.num-bad  { color: var(--bad);  font-weight: 600; }
-.dim { color: var(--muted); }
+.step { display:grid; grid-template-columns:3.2rem 1fr; gap:0 1.4rem;
+  padding:1.5rem 0; border-bottom:1px solid var(--rule); }
+.step:last-child { border-bottom:none; }
+.step-n { font-family:"IBM Plex Mono",monospace; font-size:1.5rem; font-weight:500;
+  color:var(--rule-strong); line-height:1.1; }
+.step h3 { margin:0 0 .4rem; }
+.step p { margin-bottom:.6rem; }
+.step p:last-child { margin-bottom:0; }
 
-/* region swatch */
-.sw {
-  display: inline-block;
-  width: 9px; height: 9px;
-  border-radius: 2px;
-  margin-right: 0.5rem;
-  vertical-align: baseline;
-}
+pre { font-family:"IBM Plex Mono",monospace; font-size:.79rem; line-height:1.62;
+  background:var(--panel); border:1px solid var(--rule); border-radius:5px;
+  padding:1.1rem 1.3rem; overflow-x:auto; color:var(--ink-2); margin:1.3rem 0;
+  font-variant-numeric:tabular-nums; }
 
-/* bar cell */
-.bar-track {
-  display: inline-block;
-  width: 132px;
-  height: 8px;
-  background: var(--panel-2);
-  border-radius: 2px;
-  overflow: hidden;
-  vertical-align: middle;
-  margin-left: 0.5rem;
-}
-.bar-fill { display: block; height: 100%; border-radius: 2px; }
+.next { display:grid; grid-template-columns:2.6rem 1fr; gap:0 1.2rem;
+  padding:1.4rem 0; border-bottom:1px solid var(--rule); }
+.next:last-child { border-bottom:none; }
+.next-rank { font-family:"IBM Plex Mono",monospace; font-size:1.2rem; font-weight:600;
+  color:var(--accent); line-height:1.3; }
+.next h3 { margin:0 0 .35rem; }
+.next .meta { font-family:"IBM Plex Mono",monospace; font-size:.72rem; color:var(--muted);
+  margin:0 0 .6rem; letter-spacing:.03em; }
+.next p { margin-bottom:.5rem; }
+.next p:last-child { margin-bottom:0; }
 
-/* ---------- finding blocks ---------- */
-.finding {
-  border-left: 3px solid var(--accent);
-  background: var(--panel);
-  border-top: 1px solid var(--rule);
-  border-right: 1px solid var(--rule);
-  border-bottom: 1px solid var(--rule);
-  border-radius: 0 5px 5px 0;
-  padding: 1.15rem 1.4rem;
-  margin: 1.7rem 0;
-}
-.finding.win { border-left-color: var(--good); }
-.finding.dead { border-left-color: var(--bad); }
-.finding.correction { border-left-color: var(--warn); background: var(--warn-soft); }
-.finding p:last-child { margin-bottom: 0; }
-.finding .claim {
-  font-weight: 600;
-  font-size: 1.02rem;
-  margin-bottom: 0.5rem;
-  max-width: 60ch;
-}
+.stat-row { display:flex; flex-wrap:wrap; gap:2.4rem; margin:1.8rem 0 2rem; }
+.stat .v { font-family:"IBM Plex Mono",monospace; font-size:2rem; font-weight:500;
+  line-height:1; font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+.stat .k { font-size:.78rem; color:var(--muted); margin-top:.45rem; max-width:22ch; line-height:1.35; }
 
-.verdict {
-  display: inline-block;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 0.66rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  padding: 0.2em 0.55em;
-  border-radius: 3px;
-  margin-bottom: 0.7rem;
-}
-.v-win  { background: var(--good-soft); color: var(--good); }
-.v-dead { background: var(--bad-soft);  color: var(--bad); }
-.v-corr { background: var(--warn-soft); color: var(--warn); border: 1px solid var(--warn); }
-.v-open { background: var(--accent-soft); color: var(--accent); }
+footer { border-top:2px solid var(--ink); padding-top:1.6rem; margin-top:4rem;
+  font-size:.85rem; color:var(--muted); }
+footer p { max-width:68ch; }
 
-/* ---------- phase log ---------- */
-.phase {
-  display: grid;
-  grid-template-columns: 3.2rem 1fr;
-  gap: 0 1.4rem;
-  padding: 1.5rem 0;
-  border-bottom: 1px solid var(--rule);
-}
-.phase:last-child { border-bottom: none; }
-.phase-n {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 1.5rem;
-  font-weight: 500;
-  color: var(--rule-strong);
-  line-height: 1.1;
-}
-.phase h3 { margin: 0 0 0.4rem; }
-.phase p  { margin-bottom: 0.6rem; }
-.phase p:last-child { margin-bottom: 0; }
-
-/* ---------- file list ---------- */
-.files { list-style: none; padding: 0; max-width: 100%; }
-.files li {
-  display: grid;
-  grid-template-columns: minmax(190px, 260px) 1fr;
-  gap: 0.4rem 1.3rem;
-  padding: 0.7rem 0;
-  border-bottom: 1px solid var(--rule);
-  margin: 0;
-  align-items: baseline;
-}
-.files li:last-child { border-bottom: none; }
-.files .f {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 0.8rem;
-  color: var(--ink);
-  font-weight: 500;
-  word-break: break-all;
-}
-.files .d { color: var(--ink-2); font-size: 0.93rem; }
-.tag {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 0.62rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 0.15em 0.45em;
-  border-radius: 3px;
-  background: var(--panel-2);
-  color: var(--muted);
-  border: 1px solid var(--rule);
-  margin-left: 0.5rem;
-  white-space: nowrap;
-}
-.tag.new { background: var(--good-soft); color: var(--good); border-color: transparent; }
-
-pre {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 0.79rem;
-  line-height: 1.62;
-  background: var(--panel);
-  border: 1px solid var(--rule);
-  border-radius: 5px;
-  padding: 1.1rem 1.3rem;
-  overflow-x: auto;
-  color: var(--ink-2);
-  margin: 1.3rem 0;
-  font-variant-numeric: tabular-nums;
-}
-
-.two {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.4rem;
-  margin: 1.7rem 0;
-}
-.card {
-  background: var(--panel);
-  border: 1px solid var(--rule);
-  border-radius: 5px;
-  padding: 1.2rem 1.3rem;
-}
-.card h4 {
-  font-size: 0.94rem;
-  font-weight: 600;
-  margin: 0 0 0.5rem;
-}
-.card p { font-size: 0.93rem; margin-bottom: 0; color: var(--ink-2); }
-
-.stat-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2.4rem;
-  margin: 1.8rem 0 2rem;
-}
-.stat .v {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 2rem;
-  font-weight: 500;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-}
-.stat .k {
-  font-size: 0.78rem;
-  color: var(--muted);
-  margin-top: 0.45rem;
-  max-width: 20ch;
-  line-height: 1.35;
-}
-
-footer {
-  border-top: 2px solid var(--ink);
-  padding-top: 1.6rem;
-  margin-top: 4rem;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-footer p { max-width: 68ch; }
-
-@media (max-width: 620px) {
-  .phase { grid-template-columns: 1fr; gap: 0.3rem; }
-  .phase-n { font-size: 1.05rem; }
-  .files li { grid-template-columns: 1fr; }
+@media (max-width:620px) {
+  .step,.next { grid-template-columns:1fr; gap:.3rem; }
+  .step-n,.next-rank { font-size:1.05rem; }
 }
 </style>
 
@@ -435,134 +171,137 @@ footer p { max-width: 68ch; }
 <header class="mast">
   <p class="eyebrow">Dog emotion · SuperAnimal-Quadruped × DogFLW</p>
   <h1>DogFLW Landmark Audit</h1>
-  <p class="standfirst">Three models trained, six hypotheses tested, two of my own conclusions overturned by measurement — and the discovery that a third of the facial landmarks were never learnable in the first place.</p>
+  <p class="standfirst">How a 39-keypoint body model became a 76-keypoint face-and-body model — and why most of the accuracy came from four fixes applied <em>after</em> the network, not from training it.</p>
   <div class="mast-meta">
     <span><b>Test set</b> 479 held-out DogFLW images</span>
     <span><b>Hardware</b> CPU only, 6 cores</span>
-    <span><b>Status</b> fine-tuning closed</span>
+    <span><b>Output</b> 76 of 76 points per frame</span>
   </div>
 </header>
 
-<!-- ============================================================= -->
+<!-- ================= WHERE IT ENDED ================= -->
 <section>
-  <p class="kicker">Where things stand</p>
-  <h2>The short version</h2>
-  <p>The pipeline works and produces a usable model. Of DogFLW's 46 facial landmarks, <strong>30 are accurate and 16 are not</strong> — and the 16 are not undertrained, they are structurally unlearnable by a heatmap detector. That single split explains every complaint about the rendered video, and it is the fact that should drive whatever gets built next.</p>
+  <p class="kicker">Result</p>
+  <h2>Where it ended up</h2>
 
   <div class="stat-row">
     <div class="stat">
-      <div class="v" style="color:var(--good)">0.0276</div>
-      <div class="k">NME on eyes — the best region, PCK@5% of 95.8%</div>
+      <div class="v" style="color:var(--good)">−22.7%</div>
+      <div class="k">error on the added facial keypoints, from training</div>
     </div>
     <div class="stat">
-      <div class="v" style="color:var(--bad)">0.1302</div>
-      <div class="k">NME on the skull top — PCK@5% of 0.1%, which is chance</div>
+      <div class="v" style="color:var(--good)">−28.5%</div>
+      <div class="k">further, on the ears, from a post-hoc correction</div>
+    </div>
+    <div class="stat">
+      <div class="v" style="color:var(--good)">16 → 44</div>
+      <div class="k">face landmarks actually visible per frame, from a decoding fix</div>
     </div>
     <div class="stat">
       <div class="v">0.0000</div>
-      <div class="k">Drift on the 39 original body keypoints. Nothing was forgotten</div>
+      <div class="k">drift on the 39 original body keypoints. Nothing was forgotten</div>
     </div>
   </div>
 
-  <div class="panel">
-    <p class="panel-label"><span>Three checkpoints, all scored on the same 479 held-out images</span><span>lower NME is better</span></p>
-    <table>
-      <thead><tr><th>checkpoint</th><th>added NME</th><th>PCK@5%</th><th>PCK@10%</th><th>drift</th></tr></thead>
-      <tbody>
-        <tr><td>untrained warm start</td><td>0.0754</td><td>39.4%</td><td>73.3%</td><td>0.0000</td></tr>
-        <tr><td>sigma 17, 4 epochs</td><td>0.0583</td><td>57.0%</td><td>83.1%</td><td>0.0000</td></tr>
-        <tr class="hi"><td>sigma 8, 7 epochs &nbsp;<span class="tag new">in use</span></td><td>0.0630</td><td>54.4%</td><td>79.7%</td><td>0.0000</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <p>The model in use is <em>not</em> the one with the best NME. That is deliberate, and it is the most useful thing measured this session — see <a href="#calibration">Calibration beats accuracy</a>.</p>
+  <p>The model predicts <strong>76 keypoints</strong>: SuperAnimal-Quadruped's 39 body points, unchanged, plus 37 added channels covering DogFLW's 46 facial landmarks. Nine of the 46 already existed in SuperAnimal and share their channel, which is why 46 landmarks need only 37 new outputs.</p>
 </section>
 
-<!-- ============================================================= -->
-<section id="testing">
-  <p class="kicker">Methodology</p>
-  <h2>How accuracy is actually measured</h2>
-  <p>Every number in this document comes from one of six procedures. They measure different things, and two of my mistakes came from reading one as if it were another.</p>
-
-  <h3>1 · NME — normalised mean error</h3>
-  <p>Euclidean distance from prediction to ground truth, divided by the diagonal of that image's face bounding box. Normalising makes a close-up and a distant dog comparable. Reported per landmark, then averaged. <strong>Lower is better.</strong> This is the standard facial-landmark metric and the project's primary score.</p>
-
-  <h3>2 · PCK — percentage of correct keypoints</h3>
-  <p>The share of predictions landing within 5% (or 10%) of the face diagonal. Where NME is dragged around by a few catastrophic misses, PCK asks the blunter question: how often is this point roughly right? A landmark can have mediocre NME and good PCK — that means it is usually fine and occasionally very wrong.</p>
-
-  <h3>3 · The held-out split</h3>
-  <p>DogFLW's 4,335 images split 3,855 train / 480 test. Every accuracy number here is computed on the test images only, which no training run has ever seen. The shape model added today was likewise fitted on the train split alone and scored on test.</p>
-
-  <div class="finding correction">
-    <span class="verdict v-corr">caveat</span>
-    <p class="claim">One methodological compromise, stated plainly</p>
-    <p>There is no separate validation split. Comparing epochs 4/5/6/7 to pick a stopping point used the test set, which technically biases the reported figure. The epoch differences were small enough (0.0632–0.0647) that no epoch was cherry-picked on that basis, but a clean project would carve a validation split out of train.</p>
-  </div>
-
-  <h3>4 · The forgetting check</h3>
-  <p>The whole reason this project is complicated is that adding face keypoints must not damage the 39 body keypoints inherited from SuperAnimal. So every evaluation also measures the median displacement of those 39 channels between the original model and the fine-tuned one, on confident detections. It has read <code>0.0000</code> at every stage — head surgery and memory replay both held.</p>
-
-  <h3>5 · Calibration — added this session</h3>
-  <p>How well a model's confidence separates its good predictions from its bad ones, measured as the ratio of median confidence on the 16 broken landmarks to the 30 reliable ones. NME cannot see this at all, and it turned out to matter more than NME for what you actually see on screen.</p>
-
-  <h3>6 · Temporal jitter — added this session</h3>
-  <p>Median frame-to-frame displacement of each keypoint across consecutive video frames, normalised by the detector box. Per-frame accuracy is not what the eye judges in motion; steadiness is. No still-image metric captures it.</p>
-
-  <div class="finding">
-    <span class="verdict v-open">supporting analyses</span>
-    <p class="claim">Three more procedures were used for diagnosis rather than scoring</p>
-    <p><strong>Variance explained</strong> — how much of a landmark's positional scatter a grouping variable (ear type, breed, head yaw) accounts for, ANOVA-style, on normalised ground truth. <strong>Cross-validated predictability</strong> — ridge regression from the other 45 landmarks to one, 5-fold, to ask whether a point is determined by face geometry at all. <strong>Crop-scale sweep</strong> — re-cropping test images across a 25–80% face-fill range to isolate resolution as a variable.</p>
-  </div>
-</section>
-
-<!-- ============================================================= -->
+<!-- ================= PART 1 ================= -->
 <section>
-  <p class="kicker">Chronological</p>
-  <h2>What was done</h2>
+  <p class="kicker">Part one</p>
+  <h2>How it was built</h2>
 
-  <div class="phase">
-    <div class="phase-n">01</div>
+  <div class="step">
+    <div class="step-n">01</div>
     <div>
-      <h3>Finished the interrupted training run</h3>
-      <p>The sigma-8 phase-2 run completed all 7 epochs. Two interventions kept it honest: the machine had slept overnight (a 9 h 19 m gap between epoch 3 and epoch 4 in the log, against a 14-minute epoch), and <code>max_snapshots=2</code> was about to delete epochs 4 and 5, so both were copied aside before epochs 6 and 7 overwrote them.</p>
-      <p>That copy is what made the epoch curve possible — otherwise only the last two checkpoints would have survived.</p>
+      <h3>The blocker: DeepLabCut cannot add keypoints</h3>
+      <p>DeepLabCut ships "memory replay" for fine-tuning a SuperAnimal model without catastrophic forgetting. It structurally cannot <em>add</em> outputs — <code>prepare_memory_replay</code> maps every project bodypart back into SuperAnimal's 39-keypoint space, and <code>PoseModel.build</code> loads the pretrained head with a <code>load_state_dict</code> that requires exactly that many channels.</p>
+      <p>So the project <strong>generalises</strong> memory replay rather than calling it. Everything else — model construction, dataloading, augmentation, the training loop — is stock DeepLabCut.</p>
     </div>
   </div>
 
-  <div class="phase">
-    <div class="phase-n">02</div>
+  <div class="step">
+    <div class="step-n">02</div>
     <div>
-      <h3>Scored the epoch curve, and found train loss was lying</h3>
+      <h3>Correspondence, derived from data rather than a figure</h3>
+      <p>Rather than trusting a published landmark diagram, the pretrained model was run over all 4,335 DogFLW faces and each SuperAnimal keypoint matched to its nearest DogFLW landmark. A merge required <strong>mutual nearest-neighbour agreement and median separation under 5%</strong> of the face-bbox diagonal.</p>
+      <p><strong>9 merged, 37 added → 76 outputs.</strong> The four antler keypoints were excluded from merging: on a dog the model puts <code>antler_base</code> on top of <code>earbase</code>, so they win the test by accident.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-n">03</div>
+    <div>
+      <h3>Head surgery, bit-exact on the original 39</h3>
+      <p>The head is a single 1×1 <code>ConvTranspose2d</code> over HRNet's 32-channel map, so adding outputs means adding rows to a weight matrix. The 39 pretrained filters were <strong>copied verbatim</strong>; each new filter was initialised from its spatially nearest SuperAnimal keypoint plus 1e-3 noise.</p>
+      <div class="finding correction">
+        <span class="verdict v-corr">read this before quoting any number</span>
+        <p class="claim">That warm start is why the untrained model already scored 0.0754 NME and 73.3% PCK@10%</p>
+        <p>It measures "how close is the nearest existing SuperAnimal keypoint to this DogFLW landmark", not any learned ability. <strong>0.0754 is the bar to beat, not a result.</strong> Every figure below is compared against that row, never against zero.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-n">04</div>
+    <div>
+      <h3>Generalised memory replay: two supervision sources per image</h3>
+      <p>Every training image carries all 76 channels, supervised from two places at once:</p>
       <div class="panel" style="margin-top:1rem">
-        <p class="panel-label"><span>Same 200 test images, all four surviving epochs</span></p>
+        <p class="panel-label"><span>Per-keypoint supervision, all 4,335 images</span></p>
         <table>
-          <thead><tr><th>epoch</th><th>4</th><th>5</th><th>6</th><th>7</th></tr></thead>
+          <thead><tr><th>channels</th><th>supervised by</th><th>visibility</th><th>share</th></tr></thead>
           <tbody>
-            <tr><td>train loss</td><td>0.00071</td><td>0.00070</td><td class="dim">0.00069</td><td class="dim">0.00069</td></tr>
-            <tr><td>test NME</td><td>0.06466</td><td>0.06414</td><td>0.06344</td><td class="num-good">0.06316</td></tr>
+            <tr><td>46 face</td><td>DogFLW ground truth</td><td>2</td><td>60.5%</td></tr>
+            <tr><td>30 body</td><td>the pretrained model's own predictions, gated at score ≥ 0.4</td><td>2</td><td>22.9%</td></tr>
+            <tr><td>below the gate</td><td>nothing</td><td class="num-bad">−1</td><td>16.6%</td></tr>
           </tbody>
         </table>
       </div>
-      <p>Train loss went flat between epochs 6 and 7 while test error was still falling. Stopping on the loss curve would have stopped for the wrong reason. Every future run needs <code>--eval-every 1</code>.</p>
+      <p>That <code>−1</code> is load-bearing: it makes the target generator set that channel's loss weight to <strong>zero</strong>, so training neither invents a label nor pushes the channel toward background. It is what keeps the body keypoints intact — measured drift stayed at <code>0.0000</code> at every stage.</p>
+      <p>One design decision underpins all of it: training crops are <strong>whole-dog detector boxes, not face boxes</strong>. The model is top-down, so at inference a detector supplies a whole-animal box and the pose head sees that crop. Training must match.</p>
     </div>
   </div>
 
-  <div class="phase">
-    <div class="phase-n">03</div>
+  <div class="step">
+    <div class="step-n">05</div>
     <div>
-      <h3>Diagnosed the video quality complaint</h3>
-      <p>The reported symptom was "there are certainly not 46 points on the dog's face". Measuring the rendered frames showed all 46 <em>were</em> being drawn, at median confidence 0.84. The points were not missing — sixteen of them were confidently landing in the wrong place, which reads as fewer points, not as errors.</p>
-      <p>That is what turned the investigation from "why are points hidden" to "which points are wrong, and why".</p>
-    </div>
-  </div>
-
-  <div class="phase">
-    <div class="phase-n">04</div>
-    <div>
-      <h3>Located the failure: 16 landmarks, not 46</h3>
+      <h3>Two-phase training</h3>
+      <p><strong>Phase 1</strong> freezes the 29.3M-parameter backbone and trains only the 2,508-parameter head — backward never reaches the backbone, which on CPU is the difference between hours and minutes. <strong>Phase 2</strong> unfreezes HRNet's <code>stage4</code> (21.2M parameters) at a much lower learning rate.</p>
       <div class="panel" style="margin-top:1rem">
-        <p class="panel-label"><span>Per-region, sigma 17, 479 test images</span><span>gain = improvement over the untrained warm start</span></p>
+        <p class="panel-label"><span>479 held-out test images</span><span>lower NME is better</span></p>
+        <table>
+          <thead><tr><th>checkpoint</th><th>added NME</th><th>PCK@5%</th><th>PCK@10%</th><th>drift</th></tr></thead>
+          <tbody>
+            <tr><td>untrained warm start</td><td>0.0754</td><td>39.4%</td><td>73.3%</td><td>0.0000</td></tr>
+            <tr class="hi"><td>σ=17, 4 epochs &nbsp;<span class="dim">— in use</span></td><td class="num-good">0.0583</td><td>57.0%</td><td>83.1%</td><td>0.0000</td></tr>
+            <tr><td>σ=8, 7 epochs</td><td>0.0630</td><td>54.4%</td><td>79.7%</td><td>0.0000</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-n">06</div>
+    <div>
+      <h3>An experiment that failed, and cost two days</h3>
+      <div class="finding correction">
+        <span class="verdict v-corr">negative result</span>
+        <p class="claim">Sharpening the heatmap targets from σ=17 to σ=8 was predicted to raise precision on dense facial landmarks. It made accuracy worse.</p>
+        <p>NME went 0.0583 → 0.0630 over two days of CPU training. The likely mechanism only became clear later: with no sub-pixel decoding (step 08a), the decoded position quantises to the heatmap grid regardless of how sharp the peak is — so sharpening removes training signal without buying precision.</p>
+        <p>Its per-epoch curve also showed <strong>train loss going flat while test NME was still falling</strong>. Train loss is not a stopping signal on this project.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-n">07</div>
+    <div>
+      <h3>The rendered output was still poor — so where was the error?</h3>
+      <p>Not spread across the face. Concentrated in 16 of the 46 landmarks:</p>
+      <div class="panel" style="margin-top:1rem">
+        <p class="panel-label"><span>Per region, 479 test images</span><span>gain = improvement over the untrained warm start</span></p>
         <table>
           <thead><tr><th>region</th><th>n</th><th>NME</th><th>PCK@5%</th><th></th><th>gain</th></tr></thead>
           <tbody>
@@ -571,258 +310,150 @@ footer p { max-width: 68ch; }
             <tr><td><span class="sw" style="background:var(--r-mouth)"></span>mouth</td><td>11</td><td>0.0344</td><td>80.6%</td><td><span class="bar-track"><span class="bar-fill" style="width:80.6%;background:var(--accent)"></span></span></td><td class="num-good">+29.7%</td></tr>
             <tr><td><span class="sw" style="background:var(--r-muzzle)"></span>muzzle</td><td>4</td><td>0.0524</td><td>46.7%</td><td><span class="bar-track"><span class="bar-fill" style="width:46.7%;background:var(--accent)"></span></span></td><td class="num-good">+37.7%</td></tr>
             <tr class="hi"><td><span class="sw" style="background:var(--r-ear)"></span>ear</td><td>14</td><td>0.0890</td><td>27.6%</td><td><span class="bar-track"><span class="bar-fill" style="width:27.6%;background:var(--bad)"></span></span></td><td class="num-bad">+8.0%</td></tr>
-            <tr class="hi"><td><span class="sw" style="background:var(--muted)"></span>head top</td><td>2</td><td>0.1250</td><td>0.6%</td><td><span class="bar-track"><span class="bar-fill" style="width:0.6%;background:var(--bad)"></span></span></td><td class="num-bad">+6.3%</td></tr>
+            <tr class="hi"><td><span class="sw" style="background:var(--muted)"></span>head top</td><td>2</td><td>0.1250</td><td>0.6%</td><td><span class="bar-track"><span class="bar-fill" style="width:.6%;background:var(--bad)"></span></span></td><td class="num-bad">+6.3%</td></tr>
           </tbody>
         </table>
       </div>
-      <p>Training moved nose, muzzle and mouth by 30–47% over an untrained warm start. It moved the ears and skull top by 6–8% — statistically, barely at all. The error is not spread across the face; it is concentrated in a group that never learned.</p>
+      <p>Training moved nose, muzzle and mouth by 30–47%. It moved the ears and skull top by 6–8% — statistically, barely at all. Three separate ideas were tested and <strong>ruled out</strong> as causes: resolution (tripling the face's pixel count moved ear error 4% while moving the other 30 landmarks 20%), geometry (a shape model on ears made them worse, 0.100 → 0.180), and breed identity (ear type explains 32% of the <em>tips</em>' scatter but 1.4% of the worst points').</p>
     </div>
   </div>
 
-  <div class="phase">
-    <div class="phase-n">05</div>
+  <div class="step">
+    <div class="step-n">08</div>
     <div>
-      <h3>Tested the standing ear-type hypothesis</h3>
-      <p>The project carried an untested guess that ears fail because DogFLW mixes erect-eared and floppy-eared breeds. Grouping per-image errors on <code>ear_types.csv</code> (140 pointy / 91 half / 248 floppy) confirmed it — but with a structure nobody had predicted.</p>
-      <div class="panel" style="margin-top:1rem">
-        <p class="panel-label"><span>The failure inverts by landmark, which is why the region average hid it</span></p>
-        <table>
-          <thead><tr><th>landmark</th><th>pointy</th><th>floppy</th><th>worse on</th></tr></thead>
-          <tbody>
-            <tr><td>ear_right_tip</td><td class="num-good">0.0485</td><td>0.1019</td><td>floppy, 2.1×</td></tr>
-            <tr><td>ear_left_tip</td><td class="num-good">0.0485</td><td>0.1046</td><td>floppy, 2.2×</td></tr>
-            <tr><td>ear_right_outer_low</td><td class="num-good">0.0809</td><td>0.1141</td><td>floppy</td></tr>
-            <tr><td>ear_right_outer_base</td><td>0.1301</td><td class="num-good">0.0715</td><td>pointy, 1.8×</td></tr>
-            <tr><td>ear_left_outer_base</td><td>0.1255</td><td class="num-good">0.0651</td><td>pointy, 1.9×</td></tr>
-          </tbody>
-        </table>
+      <h3>Four fixes applied after the network — where the accuracy actually came from</h3>
+      <p>Every remaining cause turned out to be fixable at inference. None required retraining.</p>
+
+      <div class="finding win">
+        <span class="verdict v-win">a · the largest bug in the project</span>
+        <p class="claim">Keypoints were snapping to a 4-pixel grid, collapsing dense landmarks onto identical coordinates</p>
+        <p><code>HeatmapPredictor</code> decodes each keypoint as <code>torch.argmax</code> over the 64×64 heatmap, then adds a learned offset <em>from the locref map</em>. These models were trained with <code>generate_locref: false</code>, so that offset is always <code>None</code> and every point lands on a cell centre.</p>
+        <p>Two landmarks peaking in the same cell therefore decode to <strong>byte-identical coordinates</strong> and render as one dot. Measured on video, 46 face channels occupied <strong>16 distinct pixel positions</strong>. Fitting a parabola through each peak and its neighbours — standard HRNet/DARK post-processing — gives <strong>44 of 46 distinct</strong>, plus ~7% better NME everywhere, because the rounding was real error and not just a display artefact.</p>
       </div>
-      <p>Tips and lower edges are accurate on erect ears and twice as bad on floppy ones. Ear <em>bases</em> are the exact opposite. Averaged over the region the two cancel to a 1.11× ratio, which is why the effect went unnoticed for the life of the project. One output channel is being pulled between two incompatible geometries.</p>
-    </div>
-  </div>
 
-  <div class="phase">
-    <div class="phase-n">06</div>
-    <div>
-      <h3>Ruled out resolution</h3>
-      <div class="panel" style="margin-top:1rem">
-        <p class="panel-label"><span>Crop-scale sweep, ground truth, 160 test images</span><span>face-fill = share of the 256px crop</span></p>
-        <table>
-          <thead><tr><th>face fills</th><th>overall NME</th><th>ear + head</th><th>the other 30</th><th>confidence</th></tr></thead>
-          <tbody>
-            <tr><td>25% of crop</td><td>0.0621</td><td>0.1015</td><td>0.0411</td><td>0.807</td></tr>
-            <tr><td>35%</td><td>0.0646</td><td>0.1070</td><td>0.0421</td><td>0.781</td></tr>
-            <tr><td>45%</td><td>0.0576</td><td>0.0978</td><td>0.0362</td><td>0.736</td></tr>
-            <tr class="hi"><td>55%</td><td class="num-good">0.0553</td><td>0.0976</td><td class="num-good">0.0328</td><td>0.705</td></tr>
-            <tr><td>62%</td><td>0.0559</td><td>0.0983</td><td>0.0333</td><td>0.672</td></tr>
-            <tr><td>70%</td><td>0.0571</td><td>0.1004</td><td>0.0340</td><td>0.633</td></tr>
-            <tr><td>80%</td><td>0.0579</td><td>0.1010</td><td>0.0350</td><td>0.589</td></tr>
-          </tbody>
-        </table>
+      <div class="finding win">
+        <span class="verdict v-win">b · ear NME 0.0882 → 0.0631, −28.5%</span>
+        <p class="claim">One channel serves both erect and floppy ears, so the model averages two geometries — and a split difference is a consistent error</p>
+        <p>The ear failure <em>inverts</em> by ear type, which is why it looked like noise in aggregate: the bias on <code>ear_*_tip</code> is 0.16 for erect ears and 0.78 for floppy, while on <code>ear_*_outer_base</code> it is 0.99 erect against 0.26 floppy. Averaged together those cancel to a 1.11× ratio.</p>
+        <p>A logistic classifier recovers ear type from the model's <strong>own predicted ear landmarks</strong> at 80% (51.8% majority baseline — nothing external needed at inference), and subtracting that type's mean residual improves every ear landmark by 12–42%. Predicted type matches an oracle type to within 0.0002, because misclassifications land between adjacent types whose biases are similar.</p>
       </div>
-      <p>Tripling the face's resolution improved the 30 reliable landmarks by <strong>20%</strong> and the ear/head group by <strong>4%</strong>. If resolution were the binding constraint both would have moved together. It is not the answer.</p>
-      <p>The sweep also produced the head-crop default: 55% is the optimum, and a whole-dog detector box on video delivers about 25%.</p>
-    </div>
-  </div>
 
-  <div class="phase">
-    <div class="phase-n">07</div>
-    <div>
-      <h3>Asked whether the broken landmarks are determined at all</h3>
-      <p>Cross-validated ridge regression from the other 45 landmarks to each one, on ground truth only. If a point's position is implied by the rest of the face, a model failing to find it is a fixable model failure. If not, no model can recover it.</p>
-      <pre>group means      ear type   breed   predictable from the other 45
-  16 broken          9.6%   12.5%       98.3%
-  30 usable          1.8%    3.9%       99.7%</pre>
-      <p>Both groups came back near-perfectly predictable — which turned out to be a trap, and is dealt with in <a href="#corrections">Corrections</a>.</p>
-    </div>
-  </div>
+      <div class="finding win">
+        <span class="verdict v-win">c · skull top 0.130 → 0.074, −43%</span>
+        <p class="claim">No local texture is not the same as undetermined</p>
+        <p><code>head_top_left/right</code> sit on featureless fur — PCK@5% of 0.6%, which is chance. But the crown is implied by the rest of the head, so a ridge shape model fitted on the training split derives both from the CNN's own predictions of the 30 reliable landmarks.</p>
+        <p>The same trick <strong>fails on ears</strong> (0.100 → 0.180). An ear can be perked or flopped independently of the face, so geometry cannot predict it. Only landmarks that are globally determined <em>and</em> locally featureless qualify.</p>
+      </div>
 
-  <div class="phase">
-    <div class="phase-n">08</div>
-    <div>
-      <h3>Built and shipped two fixes</h3>
-      <p>A head-crop inference mode and a shape-model correction for the skull-top landmarks. Both are described in <a href="#shipped">What shipped</a>.</p>
+      <div class="finding">
+        <span class="verdict v-open">d · available, off by default</span>
+        <p class="claim">Two-pass head crop: better numbers, worse picture</p>
+        <p>Re-cutting the box so the face fills 55% of it (a whole-dog box on video gives ~25%) is worth ~18% NME on the reliable landmarks. It is off by default because it lowers confidence, and with sub-pixel decoding active it drops distinct face points from 44 to 25. Use it when measuring, not when looking.</p>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- ============================================================= -->
-<section id="calibration">
-  <p class="kicker">The most useful finding</p>
-  <h2>Calibration beats accuracy</h2>
-  <p>You reported that the sigma-8 model looked better on video. The test split said sigma 17 was more accurate. Both were true, and the reason matters more than the models do.</p>
-
-  <div class="panel">
-    <p class="panel-label"><span>40 consecutive video frames, same clip, same 0.35 display cutoff</span></p>
-    <table>
-      <thead><tr><th>model</th><th>drawn @0.35</th><th>conf, 30 good</th><th>conf, 16 bad</th><th>bad ÷ good</th><th>jitter</th></tr></thead>
-      <tbody>
-        <tr><td>sigma 17</td><td>46.0 / 46</td><td>0.922</td><td>0.690</td><td class="num-bad">0.75</td><td>0.0092</td></tr>
-        <tr class="hi"><td>sigma 8</td><td>29.6 / 46</td><td>0.566</td><td>0.261</td><td class="num-good">0.46</td><td class="num-good">0.0085</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="finding win">
-    <span class="verdict v-win">confirmed</span>
-    <p class="claim">Sigma 8 draws 29.6 of 46 points. There are exactly 30 reliable landmarks.</p>
-    <p>It is not more accurate — it is <strong>better calibrated</strong>. Its confidence tracks whether a prediction can be trusted; sigma 17's barely varies between its good and bad channels. At the same cutoff you therefore see 30 clean points from sigma 8, versus 30 clean points buried among 16 confidently-wrong ones from sigma 17. It is also 8–18% steadier frame to frame.</p>
-    <p>The position penalty is 0.0340 → 0.0360 NME on the reliable landmarks: a fraction of a pixel at video scale, against the large visible win of not drawing sixteen wrong points.</p>
-  </div>
-
-  <p>A second-order consequence worth carrying forward: across the crop sweep, <strong>confidence moved opposite to accuracy</strong> — 0.807 at the worst scale, 0.589 at the best. Confidence is a visibility control on this project, never a quality signal, and nothing should be tuned by watching it rise.</p>
-</section>
-
-<!-- ============================================================= -->
+<!-- ================= LESSONS ================= -->
 <section>
-  <p class="kicker">The core problem</p>
-  <h2>Why 16 landmarks cannot be learned</h2>
-  <p>A heatmap head is a <em>local</em> detector: each output channel responds to image evidence near its own point. That is why eyes, nostrils and lip corners work. The 16 failures split into two distinct causes, and they need opposite treatments.</p>
+  <p class="kicker">What generalised</p>
+  <h2>Three things worth carrying forward</h2>
 
-  <div class="two">
-    <div class="card">
-      <h4>Skull top — 2 landmarks</h4>
-      <p>No local texture whatsoever: plain fur between the ears. But the position <em>is</em> implied by the rest of the head. Error is identical across all three ear types (0.121–0.131), so breed is irrelevant. <strong>Globally determined, locally invisible.</strong></p>
-    </div>
-    <div class="card">
-      <h4>Ears — 14 landmarks</h4>
-      <p>Strong local texture — an ear edge against background is highly visible. But the position is <em>not</em> globally determined: an ear can be perked or flopped independently of the rest of the face. <strong>Locally visible, globally undetermined.</strong></p>
-    </div>
-  </div>
-
-  <p>Those two diagnoses predict opposite fixes, and the measurements bore that out exactly: geometry rescues the skull top and fails badly on ears.</p>
-
-  <div class="panel">
-    <p class="panel-label"><span>Shape model vs the CNN, on the 16 broken landmarks, 479 test images</span></p>
-    <table>
-      <thead><tr><th>method</th><th>NME on the 16</th><th>PCK@10%</th></tr></thead>
-      <tbody>
-        <tr><td>CNN direct</td><td class="num-good">0.1001</td><td>55.0%</td></tr>
-        <tr><td>shape model, ground-truth inputs</td><td>0.1094</td><td>56.5%</td></tr>
-        <tr><td>shape model, CNN-predicted inputs</td><td class="num-bad">0.1800</td><td>27.6%</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <p>Applied to all 16, deriving is <em>worse</em> than detecting. Split by landmark, the picture inverts cleanly:</p>
-
-  <div class="panel">
-    <p class="panel-label"><span>Per landmark — the same shape model, the same run</span></p>
-    <table>
-      <thead><tr><th>landmark</th><th>CNN</th><th>derived</th><th>winner</th></tr></thead>
-      <tbody>
-        <tr class="hi"><td>head_top_right</td><td>0.1317</td><td class="num-good">0.0756</td><td>derived, −43%</td></tr>
-        <tr class="hi"><td>head_top_left</td><td>0.1286</td><td class="num-good">0.0733</td><td>derived, −43%</td></tr>
-        <tr><td>ear_right_tip</td><td class="num-good">0.0551</td><td>0.3057</td><td>CNN, by 5.5×</td></tr>
-        <tr><td>ear_right_outer_low</td><td class="num-good">0.1160</td><td>0.2563</td><td>CNN</td></tr>
-        <tr><td>ear_right_outer_mid</td><td class="num-good">0.1674</td><td>0.1877</td><td>CNN</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <h3>Can ear type drive training?</h3>
-  <p>Partly — and it aims at the wrong landmarks. Variance explained by ear type, with head yaw as a control:</p>
-
-  <div class="panel">
-    <p class="panel-label"><span>Share of positional scatter explained, ground truth, 4,333 faces</span></p>
-    <table>
-      <thead><tr><th>landmark</th><th>ear type</th><th>breed (120-way)</th><th>head yaw</th><th>current NME</th></tr></thead>
-      <tbody>
-        <tr><td>ear_right_tip</td><td class="num-good">32.0%</td><td>37.8%</td><td>0.8%</td><td>0.055 <span class="dim">already fine</span></td></tr>
-        <tr><td>ear_left_tip</td><td class="num-good">21.6%</td><td>25.6%</td><td>0.5%</td><td>0.057 <span class="dim">already fine</span></td></tr>
-        <tr><td>ear_right_outer_mid</td><td class="num-bad">1.4%</td><td>5.0%</td><td>1.4%</td><td>0.167 <span class="dim">the worst</span></td></tr>
-        <tr><td>ear_left_outer_mid</td><td class="num-bad">0.7%</td><td>1.8%</td><td>0.7%</td><td>0.117</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <p>The control passes convincingly: head yaw explains 0.7% of ear scatter but 9.7–10.6% of mouth and nose scatter, so the method is detecting real structure. Ear type genuinely is the right variable for ears — it just explains the tips, which already work, and explains nothing about the contour points that don't.</p>
-
-  <div class="finding dead">
-    <span class="verdict v-dead">dead end</span>
-    <p class="claim">Roughly six ear contour points resist everything measured</p>
-    <p><code>outer_mid</code>, <code>outer_low</code> and <code>inner_low</code> are not fixable by resolution, not derivable from geometry, and not explained by breed or ear type. The most likely reason is that they were annotated as <em>evenly spaced points along a smooth ear edge</em> — in which case nothing in the image defines them and no model can recover them.</p>
-    <p>If that is right, the correct treatment is to model the ear as a <strong>curve</strong> and sample points along it, rather than as six independent point detectors. Confirming it requires the DogFLW landmark manual, which sits behind a dead link shortener — worth an email to the authors before building anything on the assumption.</p>
-  </div>
-</section>
-
-<!-- ============================================================= -->
-<section id="shipped">
-  <p class="kicker">Implemented</p>
-  <h2>What shipped</h2>
-
-  <div class="finding win">
-    <span class="verdict v-win">measured −43%</span>
-    <p class="claim">Shape-model correction for the skull-top landmarks</p>
-    <p>A ridge shape model fitted on the training split maps the 30 reliable landmarks to the 2 head-top ones. At inference it runs on the CNN's <em>own</em> predictions, so the quoted improvement is the realistic figure, not a ground-truth ceiling: <code>0.1317 → 0.0757</code> and <code>0.1286 → 0.0735</code> on 478 of 479 test images.</p>
-    <p>A derived point inherits the median confidence of the sources it came from, so the display cutoff stays meaningful rather than stamping a fabricated 1.0 on it. On by default; <code>--no-refine</code> disables it.</p>
+  <div class="finding">
+    <span class="verdict v-open">1</span>
+    <p class="claim">An error that looks like noise in aggregate is often systematic once conditioned on the right variable</p>
+    <p>This produced three of the four fixes. <code>UNRELIABLE</code> in the codebase went from 14 landmarks, to 2, to <strong>empty</strong> — each time because a "structurally unlearnable" point turned out to have a consistent, subtractable error. Before concluding a landmark cannot be learned, check whether its error has a direction given something observable.</p>
   </div>
 
   <div class="finding">
-    <span class="verdict v-open">measured +13%</span>
-    <p class="claim">Two-pass head-crop inference</p>
-    <p>After the first pose pass, the detector box is re-cut so the face fills 55% of it — the measured optimum — and pose runs again. Recovers most of the gap between a whole-dog box on video (~25%) and the training distribution. Exposed as a checkbox in the app and <code>--head-crop FRAC</code> on the command line; output files gain an <code>_hc</code> suffix so both versions survive for comparison.</p>
-    <p>It buys nothing on the ears, as the sweep predicted, and costs a second pose pass per frame.</p>
+    <span class="verdict v-open">2</span>
+    <p class="claim">On this model, confidence runs <em>opposite</em> to accuracy</p>
+    <p>Across the crop-scale sweep confidence fell from 0.807 to 0.589 as accuracy improved. It is a visibility control, never a quality signal. Nothing should be gated or tuned by watching it rise — a gate built on it skipped the second pass on 0 of 20 frames that needed it.</p>
   </div>
 
   <div class="finding">
-    <span class="verdict v-open">default changed</span>
-    <p class="claim">Sigma 8 promoted to the default model</p>
-    <p>Reordered on calibration rather than NME, and relabelled so the trade-off is visible at the point of choice rather than buried in a report.</p>
+    <span class="verdict v-open">3</span>
+    <p class="claim">Mean NME across all 46 landmarks is the wrong way to rank checkpoints here</p>
+    <p>It weights a garbage ear point exactly like an eye corner, and ignores confidence entirely — so it ranked the model that <em>hides</em> its failures below the one that displays them. Ranking on it also nearly shipped the model that draws 33 of 46 points instead of 46.</p>
   </div>
-
-  <ul class="files">
-    <li><span class="f">src/shape_refine.py <span class="tag new">new</span></span><span class="d">Fits and applies the shape model. <code>--fit</code> trains on the train split, <code>--eval</code> scores it on test. Documents why the same trick fails on ears, so nobody re-adds them to the target list.</span></li>
-    <li><span class="f">data/shape_model.npz <span class="tag new">new</span></span><span class="d">Fitted coefficients, 3.4 KB, from 3,853 training faces.</span></li>
-    <li><span class="f">src/run_video.py</span><span class="d">Added <code>--head-crop</code> and <code>--no-refine</code>; <code>head_boxes()</code>; <code>run_pose()</code> now accepts a box list so it can be called twice.</span></li>
-    <li><span class="f">src/video_app.py</span><span class="d">Head-crop checkbox, model reordering by calibration, relabelled dropdown entries, <code>_hc</code> output tagging.</span></li>
-    <li><span class="f">outputs/diagnostics/</span><span class="d">Two zoomed side-by-side renders: the two models compared, and dog-box versus head-box cropping.</span></li>
-  </ul>
 </section>
 
-<!-- ============================================================= -->
-<section id="corrections">
-  <p class="kicker">Errors</p>
-  <h2>Three things I got wrong</h2>
-  <p>Each was caught by a measurement rather than by review, which is the argument for running the measurement.</p>
-
-  <div class="finding correction">
-    <span class="verdict v-corr">corrected</span>
-    <p class="claim">I recommended sharpening the heatmap targets. It made the model less accurate.</p>
-    <p>The sigma 17 → 8 change was predicted to raise precision on dense facial landmarks. It raised NME from 0.0583 to 0.0630 across two days of CPU training. The likely mechanism is that <code>generate_locref</code> is off, so decoded positions quantise to the 64×64 grid regardless of how sharp the peak is — sharpening removes training signal without buying precision. Sigma 8 is in use today, but for calibration, not for the reason it was trained.</p>
-  </div>
-
-  <div class="finding correction">
-    <span class="verdict v-corr">corrected</span>
-    <p class="claim">I read detector boxes as xyxy when they are xywh, and reported a face/box ratio that was wrong.</p>
-    <p>Quoted as 38–41%; actually about 25%. Caught by printing a raw box and noticing the implied height was negative. The head-crop code was unaffected — it derives scale from keypoints — but the reported scale mismatch was understated by roughly 2×.</p>
-  </div>
-
-  <div class="finding correction">
-    <span class="verdict v-corr">corrected</span>
-    <p class="claim">I read a 98% R² as "these landmarks are recoverable". It mostly measured the face's overall position.</p>
-    <p>Predicting a landmark from the other 45 scores 98.3% because those 45 pin down where the face is and how big it is. The residual 1.7% is the part that actually locates an ear, and it is larger than the ear's own signal. The direct test — build the shape model, run it, score it — showed 0.1001 → 0.1800 and corrected the reading. High R² on a mostly-shared-variance problem is not evidence of recoverability.</p>
-  </div>
-
-  <p>A fourth, of a different kind: I ranked checkpoints on mean NME across all 46 landmarks, a metric that weights a garbage ear point exactly like an eye corner and ignores confidence entirely. It scored the model that hides its own failures <em>below</em> the one that displays them. Your observation that sigma 8 looked better was correct and the metric was wrong.</p>
-</section>
-
-<!-- ============================================================= -->
+<!-- ================= PART 2 ================= -->
 <section>
-  <p class="kicker">Open</p>
-  <h2>What is not done</h2>
-  <ul>
-    <li><strong>Fine-tuning SuperAnimal-Quadruped is closed</strong> by direction. Nothing is running or queued.</li>
-    <li><strong>The two-model design</strong> — separate face and body models with dual inference — is worth doing for the simplification alone: it deletes the entire memory-replay apparatus, the pseudo-labels, the visibility masking and the 76-channel head surgery, because the body model would be stock SuperAnimal and never touched. Expect ~10–20% on the 30 good landmarks and roughly nothing on the 16 broken ones.</li>
-    <li><strong>The ~6 dead ear contour points</strong> need the DogFLW landmark manual before any further work is justified.</li>
-    <li><strong>Ear-type conditioning</strong> would plausibly halve floppy-ear tip error using the existing visibility-masking machinery, but touches a handful of landmarks that already work reasonably.</li>
-    <li><strong><code>CLAUDE.md</code> is stale</strong> — its status table still says no trained model exists and frames 0.0754 as the bar to beat. Everything in this document is missing from it.</li>
-    <li><strong>Nothing is committed to git.</strong> The working tree holds every change described here.</li>
-  </ul>
+  <p class="kicker">Part two</p>
+  <h2>What could be done next</h2>
+  <p>Ranked by expected value against effort. The first two are the ones I would actually do.</p>
+
+  <div class="next">
+    <div class="next-rank">1</div>
+    <div>
+      <h3>Retrain with <code>generate_locref: true</code></h3>
+      <p class="meta">effort: head surgery + one training run · expected: replaces a workaround with the real mechanism</p>
+      <p>Sub-pixel peak fitting recovers what argmax throws away, but it is inference-side estimation. A learned offset head is what the architecture is designed around, and it is the reason the σ=8 experiment failed — sharpening peaks buys nothing while the decode is quantised. With locref, sharper targets should finally pay off, so this unlocks a lever that is currently dead.</p>
+      <p>Cost: locref adds 2 output channels per keypoint, so the head grows 76 → 228 and needs another surgery pass; the new channels start untrained. Evaluate the forgetting metric, since it also retrains the original 39.</p>
+    </div>
+  </div>
+
+  <div class="next">
+    <div class="next-rank">2</div>
+    <div>
+      <h3>Split into two models — face and body, dual inference</h3>
+      <p class="meta">effort: substantial · expected: ~10–20% on the 30 good landmarks, ~0 on ears</p>
+      <p>Worth doing for the simplification alone. It deletes the entire memory-replay apparatus — pseudo-labels, visibility masking, 76-channel head surgery — because the body model becomes stock SuperAnimal, never touched. The face model then trains on face crops natively instead of the whole-dog-crop compromise, and each gets its own crop size, σ and augmentation. The head box comes free from the body model's eye and nose keypoints, which are its best channels.</p>
+      <p>Be clear about what it will <em>not</em> fix: ear error is flat across a 3× crop range, so a better-scaled face model does not touch it.</p>
+    </div>
+  </div>
+
+  <div class="next">
+    <div class="next-rank">3</div>
+    <div>
+      <h3>Ear-type-conditioned output channels</h3>
+      <p class="meta">effort: one training run · expected: attacks the cause the correction only patches</p>
+      <p>The bias correction is post-hoc — it subtracts an averaged error rather than preventing the averaging. Giving each ear landmark a channel per ear type (14 × 3 = 42 channels, negligible parameters on a 1×1 head) and supervising only the matching set would let the model learn two geometries instead of splitting the difference. <strong>The masking machinery already exists</strong>: visibility <code>−1</code> zeroes a channel's loss weight, which is exactly what is needed.</p>
+      <p>At inference, select the channel set with the existing 80% classifier. Ceiling is unknown — the correction already recovers 28.5%, so the remaining headroom may be modest.</p>
+    </div>
+  </div>
+
+  <div class="next">
+    <div class="next-rank">4</div>
+    <div>
+      <h3>Carve out a real validation split</h3>
+      <p class="meta">effort: an hour · expected: no accuracy gain, but every number becomes trustworthy</p>
+      <p>There is currently no validation set. Choosing a stopping epoch used the test split, which biases the reported figure. The differences were small enough that no epoch was cherry-picked, but any further tuning — and points 1 and 3 both involve tuning — needs a clean split first, or the results will not be defensible.</p>
+    </div>
+  </div>
+
+  <div class="next">
+    <div class="next-rank">5</div>
+    <div>
+      <h3>Video-domain augmentation</h3>
+      <p class="meta">effort: a config change plus a training run · expected: unmeasured, plausibly significant</p>
+      <p>DogFLW is close-up portraits; the target domain is video — lower resolution, motion blur, the animal at distance. Nothing in training simulates that. Adding downscale, blur and JPEG-artefact augmentation is cheap and directly targets the gap between where the model was trained and where it is used. This has not been tested and should be measured before being believed.</p>
+    </div>
+  </div>
+
+  <div class="next">
+    <div class="next-rank">6</div>
+    <div>
+      <h3>Get the DogFLW landmark manual from the authors</h3>
+      <p class="meta">effort: an email · expected: settles a question nothing else can</p>
+      <p>The landmark <em>names</em> in this project are inferred from the data — the mean face shape is near-perfectly bilaterally symmetric, giving 20 mirror pairs and 6 midline points, and the groups were read off that. Two independent cross-checks passed, but the real manual is behind a dead link shortener.</p>
+      <p>It also settles the one open question about the ear contour points: if <code>ear_*_outer_mid</code> is defined as "evenly spaced along the ear edge", then no model can recover it from pixels and the right treatment is to model the ear as a <strong>curve</strong> and sample along it, rather than as independent point detectors.</p>
+    </div>
+  </div>
+
+  <div class="next">
+    <div class="next-rank">7</div>
+    <div>
+      <h3>Fine-tune the detector</h3>
+      <p class="meta">effort: moderate · expected: small, and partly obsolete</p>
+      <p>Stage 1 is stock SuperAnimal and was never touched. It is the reason the face arrives at ~25% of the crop on video instead of the ~56% the pose head trained on. A head-aware detector would remove the need for the two-pass crop entirely. Lower priority now that sub-pixel decoding has absorbed most of what the crop was compensating for.</p>
+    </div>
+  </div>
 </section>
 
 <footer>
-  <p>All accuracy figures computed on the 479 held-out DogFLW test images unless stated otherwise. NME is normalised by face bounding-box diagonal; lower is better. DogFLW is CC BY-NC 4.0 — the non-commercial restriction propagates to any model trained on it.</p>
+  <p>All accuracy figures computed on the 479 held-out DogFLW test images unless stated otherwise. NME is normalised by face bounding-box diagonal; lower is better. Video measurements were made on the clip committed alongside the code, so they are reproducible. DogFLW is CC BY-NC 4.0 — the non-commercial restriction propagates to any model trained on it.</p>
 </footer>
 
 </div>

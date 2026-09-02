@@ -77,6 +77,11 @@ predicting a nearby point rather than noise.
 
 ## Environment notes
 
-CPU-only aarch64 (Asahi Linux), no CUDA. DeepLabCut 3.0.1 pins `numpy<2`, which has no
-cp313 wheel, so it is installed with `--no-deps` into a `--system-site-packages` venv that
-reuses the system torch/numpy 2.4 stack; the PyTorch engine runs fine against numpy 2.
+**CPU-only on both machines it has run on** — a Windows 11 / Ryzen box (the current one;
+PyTorch's ROCm builds are Linux-only, so the iGPU is unusable) and the original aarch64
+Asahi Linux box. `device="cpu"` throughout is deliberate, not a leftover.
+
+DeepLabCut 3.0.1 pins `numpy<2` and is installed with `--no-deps` to dodge that pin; the
+PyTorch engine runs fine against numpy 2. Full per-platform install steps, including the
+Windows `timm` and dataloader-worker gotchas, are in **CLAUDE.md §8**. To just run the app,
+use **[SETUP.md](SETUP.md)**.

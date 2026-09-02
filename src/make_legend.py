@@ -26,6 +26,21 @@ def bgr(t):
 
 ORDER = ["ear", "head", "eye", "nose", "muzzle", "mouth"]
 INK, MUTED, RULE = "#14171F", "#6B7488", "#D8DEE8"
+MERGE_INK = "#1B6E9E"
+
+
+def merged_landmarks(path="data/keypoint_map.json"):
+    """DogFLW index -> the SuperAnimal keypoint it shares a channel with.
+
+    A landmark is *merged* when analyze_correspondence.py found it was already predicted
+    by SuperAnimal, so it reuses that channel instead of adding one. Those channels
+    carry pretrained weights and DogFLW ground truth at once; the other 37 were added
+    and warm-started. That is why 46 landmarks need only 37 new outputs.
+    """
+    km = json.load(open(path))
+    d2m = {int(k): v for k, v in km["dogflw_to_model_idx"].items()}
+    sa = km["superanimal_bodyparts"]
+    return {d: sa[d2m[d]] for d in range(46) if d2m[d] < len(sa)}
 
 
 def mean_shape():
@@ -46,6 +61,7 @@ def main():
     a = ap.parse_args()
 
     M, n = mean_shape()
+    MERGED = merged_landmarks()
     fig = plt.figure(figsize=(16.5, 8.6), dpi=200)
     fig.patch.set_facecolor("white")
     # Three columns: the diagram, then the key split in two so the page stays wide
@@ -61,12 +77,16 @@ def main():
                 solid_capstyle="round")
     for i in range(46):
         col = bgr(REGION_COLOR[REGION_OF[i]])
-        dead = i in UNRELIABLE
+        dead, mrg = i in UNRELIABLE, i in MERGED
+        # merged channels get a heavier blue ring, matching the asterisk in the key
         ax.scatter(M[i, 0], M[i, 1], s=150, color=col, zorder=3,
-                   edgecolors="#2A2E38" if not dead else "#B23A2B",
-                   linewidths=1.0 if not dead else 2.0)
+                   edgecolors="#B23A2B" if dead else (MERGE_INK if mrg else "#2A2E38"),
+                   linewidths=2.2 if (dead or mrg) else 1.0)
         ax.annotate(str(i), (M[i, 0], M[i, 1]), color="#14171F", fontsize=6.4,
                     fontweight="bold", ha="center", va="center", zorder=4)
+        if mrg:
+            ax.annotate("*", (M[i, 0] + 0.028, M[i, 1] - 0.022), color=MERGE_INK,
+                        fontsize=13, fontweight="bold", ha="center", va="center", zorder=5)
     ax.set_xlim(-0.08, 1.08)
     ax.set_ylim(1.16, -0.12)
     ax.set_aspect("equal")
@@ -87,16 +107,21 @@ def main():
                      va="center")
             y -= 0.045
             for i in idx:
-                dead = i in UNRELIABLE
+                dead, mrg = i in UNRELIABLE, i in MERGED
                 ax2.text(0.10, y, f"{i:>2d}", fontsize=9, color=MUTED, va="center",
                          family="monospace")
-                ax2.text(0.16, y, DOGFLW_NAMES[i], fontsize=9,
-                         color="#B23A2B" if dead else "#3D4557", va="center")
+                label = DOGFLW_NAMES[i] + (" *" if mrg else "")
+                ax2.text(0.16, y, label, fontsize=9,
+                         color="#B23A2B" if dead else ("#1B3F5A" if mrg else "#3D4557"),
+                         va="center", fontweight="bold" if mrg else "normal")
                 if dead:
-                    ax2.text(0.63, y, "not drawn", fontsize=8, style="italic",
+                    ax2.text(0.60, y, "not drawn", fontsize=8, style="italic",
                              color="#B23A2B", va="center")
+                elif mrg:
+                    ax2.text(0.60, y, f"shares '{MERGED[i]}'", fontsize=7.8,
+                             style="italic", color=MERGE_INK, va="center")
                 elif i in SHAPE_DERIVED:
-                    ax2.text(0.63, y, "derived", fontsize=8, style="italic",
+                    ax2.text(0.60, y, "derived", fontsize=8, style="italic",
                              color="#1B7A50", va="center")
                 y -= 0.029
             y -= 0.020
@@ -124,9 +149,14 @@ def main():
     fig.suptitle("Dog face keypoints  —  76 outputs = 39 body + 37 added facial",
                  fontsize=20, fontweight="bold", color=INK, x=0.03, ha="left", y=0.965)
     fig.text(0.03, 0.905,
-             "46 DogFLW facial landmarks. 9 share a channel with an existing "
-             "SuperAnimal keypoint, so only 37 channels were added.",
+             "46 DogFLW facial landmarks. The 9 marked * share a channel with an "
+             "existing SuperAnimal keypoint - they reuse pretrained weights rather than "
+             "adding an output - so only 37 channels were added.",
              fontsize=10.5, color=MUTED, ha="left", va="top")
+    fig.text(0.03, 0.028,
+             "*  merged channel: carries pretrained SuperAnimal weights and DogFLW "
+             "ground truth at once. Ringed in blue on the diagram.",
+             fontsize=9, color=MERGE_INK, ha="left", va="bottom")
 
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(a.out, facecolor="white", bbox_inches="tight", pad_inches=0.3)
