@@ -62,30 +62,60 @@ def keep_awake() -> None:
         print(f"[power] could not suppress sleep: {e}", flush=True)
 
 
-def build_seed_snapshot(out: Path, n_keypoints: int, device: str = "cpu") -> Path:
+def build_seed_snapshot(out: Path, n_keypoints: int, model_cfg: dict,
+                        device: str = "cpu") -> Path:
     """SuperAnimal backbone + a fresh n_keypoints head, saved as a startable snapshot.
 
-    DeepLabCut's trainer loads a snapshot with `load_state_dict`, which cannot reconcile
-    a 39-channel head with a 46-channel one. Rather than teach it to, drop the head
-    tensors from the pretrained state dict and let the model's own initialisation stand.
-    The backbone - 29.4M of the 29.4M parameters that matter - transfers intact.
+    DeepLabCut's trainer loads a snapshot with a STRICT `load_state_dict`, so the seed
+    has to be a complete state dict for the model being built. Simply deleting the
+    39-channel head tensors fails with "Missing key(s)" - the head must be present at
+    the new width instead.
+
+    So: build the 46-keypoint model to get a correctly-shaped, freshly-initialised head,
+    and graft it onto the pretrained backbone. Any key whose shape disagrees is reported
+    rather than silently replaced, because a silent mismatch would mean part of the
+    backbone quietly failed to transfer.
     """
     import superanimal as sa
+    from deeplabcut.pose_estimation_pytorch.models import PoseModel
 
     src, _ = sa.snapshot_paths()
     snap = torch.load(src, map_location=device, weights_only=False)
-    state = dict(snap["model"])
-    dropped = [k for k in (HEAD_W, HEAD_B) if k in state]
-    for k in dropped:
-        del state[k]
+    pretrained = dict(snap["model"])
+
+    fresh = PoseModel.build(model_cfg, weight_init=None,
+                            pretrained_backbone=False).state_dict()
+
+    state, transferred, reinit = {}, 0, []
+    for key, target in fresh.items():
+        source = pretrained.get(key)
+        if source is not None and source.shape == target.shape:
+            state[key] = source.clone()
+            transferred += target.numel()
+        else:
+            state[key] = target.clone()
+            reinit.append((key, tuple(target.shape),
+                           None if source is None else tuple(source.shape)))
+
     snap["model"] = state
     snap["metadata"] = {"epoch": 0}
-    snap["_face_seed"] = {"n_keypoints": n_keypoints, "dropped": dropped}
     out.parent.mkdir(parents=True, exist_ok=True)
     torch.save(snap, out)
-    print(f"[seed] SuperAnimal backbone kept, head dropped {dropped} -> {n_keypoints} "
-          f"fresh channels\n[seed] wrote {out} ({out.stat().st_size / 1e6:.1f} MB)",
-          flush=True)
+
+    total = sum(t.numel() for t in fresh.values())
+    print(f"[seed] transferred {transferred:,}/{total:,} params "
+          f"({100 * transferred / total:.2f}%) from SuperAnimal-Quadruped", flush=True)
+    for key, want, got in reinit:
+        print(f"[seed]   fresh: {key} {want}"
+              + (f"  (pretrained had {got})" if got else "  (absent upstream)"),
+              flush=True)
+    expected = {HEAD_W, HEAD_B}
+    unexpected = [k for k, _, _ in reinit if k not in expected]
+    if unexpected:
+        raise RuntimeError(
+            "backbone weights failed to transfer, which would silently throw away the "
+            f"pretraining this run depends on: {unexpected}")
+    print(f"[seed] wrote {out} ({out.stat().st_size / 1e6:.1f} MB)", flush=True)
     return out
 
 
@@ -220,7 +250,7 @@ def main() -> None:
         (model_folder / "pytorch_config.yaml").resolve())
 
     snapshot = a.snapshot or str(build_seed_snapshot(
-        PROJECT / "seed_superanimal_backbone.pt", tc.n_keypoints))
+        PROJECT / "seed_superanimal_backbone.pt", tc.n_keypoints, cfg["model"]))
 
     loader = FaceLoader(project_root=PROJECT, model_config=cfg,
                         train_json_filename="train.json",
