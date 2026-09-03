@@ -120,7 +120,13 @@ def main():
                     ax2.text(0.60, y, f"shares '{MERGED[i]}'", fontsize=7.8,
                              style="italic", color=MERGE_INK, va="center")
                 elif i in SHAPE_DERIVED:
-                    ax2.text(0.60, y, "derived", fontsize=8, style="italic",
+                    # NOT "derived" any more. On the unified model these two were
+                    # computed by shape_refine.py instead of detected, because the CNN
+                    # scored them at PCK@5% 0.6% - chance. In the cascade that
+                    # correction is quarantined and OFF by default, so labelling them
+                    # "derived" would describe behaviour that is not running. Name the
+                    # measured problem instead; the fix is a question, not a fact.
+                    ax2.text(0.60, y, "no local texture", fontsize=7.6, style="italic",
                              color="#1B7A50", va="center")
                 y -= 0.029
             y -= 0.020
@@ -152,6 +158,13 @@ def main():
              "face-filling crop. The 39 body keypoints come from a separate, unmodified "
              "SuperAnimal-Quadruped pass over the whole dog.",
              fontsize=10.5, color=MUTED, ha="left", va="top")
+    fig.text(0.03, 0.028,
+             "no local texture:  the skull crown is plain fur, so a heatmap head - a "
+             "local detector - has nothing to lock onto. On the previous architecture "
+             "these two scored PCK@5% 0.6%, i.e. chance, and were computed from the "
+             "other landmarks instead. That correction is currently OFF and unmeasured "
+             "on this model.",
+             fontsize=8.6, color="#1B7A50", ha="left", va="bottom")
 
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(a.out, facecolor="white", bbox_inches="tight", pad_inches=0.3)
