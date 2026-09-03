@@ -83,7 +83,8 @@ class FaceLoader(COCOLoader):
                        task: Task = Task.BOTTOM_UP) -> PoseDataset:
         parameters = self.get_dataset_parameters()
         data = self.load_data(mode)
-        data["annotations"] = Loader.filter_annotations(self, data["annotations"], task)
+        # filter_annotations is a @staticmethod on Loader - no self.
+        data["annotations"] = Loader.filter_annotations(data["annotations"], task)
         return JitterBoxDataset(
             images=data["images"],
             annotations=data["annotations"],
