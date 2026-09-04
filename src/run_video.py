@@ -115,7 +115,10 @@ def main() -> None:
     print(f"{len(paths)} frames at {fps:.1f} fps", flush=True)
 
     cascade = Cascade(a.config, a.snapshot, cfg=cfg)
-    ear, refiner = _load_post(cfg)
+    if cascade.ear_corrector is not None:
+        print("[post] ear correction ON (quarantined - measure it on val)", flush=True)
+    if cascade.refiner is not None:
+        print("[post] shape refine ON (quarantined - measure it on val)", flush=True)
 
     t0 = time.time()
     boxes, poses = cascade.stage1(paths)
@@ -125,12 +128,9 @@ def main() -> None:
     for i, p in enumerate(paths):
         img = cv2.imread(p)
         fb = cascade.face_box_for(poses[i], boxes[i])
+        # stage2 applies whatever post-processing the config enables, so evaluation
+        # and rendering cannot drift apart.
         face = cascade.stage2(img, fb) if fb is not None else None
-        if face is not None:
-            if ear is not None:
-                ear.apply(face)
-            if refiner is not None:
-                refiner.apply(face)
         results.append(FrameResult(boxes[i], poses[i], fb, face))
         if (i + 1) % 25 == 0:
             print(f"  stage 2: {i + 1}/{len(paths)}", flush=True)
@@ -166,20 +166,6 @@ def main() -> None:
         print(f"DRAWN: {np.mean(drawn):.1f}/46 face landmarks per frame "
               f"(min {min(drawn)}, max {max(drawn)}) at conf >= {a.pcut}")
     print(f"wrote {a.out}  ({time.time() - t0:.1f}s total)")
-
-
-def _load_post(cfg: CascadeConfig):
-    """Load the quarantined corrections only when explicitly enabled."""
-    ear = refiner = None
-    if cfg.post.ear_correct:
-        from ear_correct import EarCorrector
-        ear = EarCorrector()
-        print("[post] ear correction ON (quarantined - measure it on val)", flush=True)
-    if cfg.post.shape_refine:
-        from shape_refine import Refiner
-        refiner = Refiner()
-        print("[post] shape refine ON (quarantined - measure it on val)", flush=True)
-    return ear, refiner
 
 
 if __name__ == "__main__":

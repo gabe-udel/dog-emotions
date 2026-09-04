@@ -137,20 +137,33 @@ class TrainConfig:
 
 @dataclass(frozen=True)
 class PostConfig:
-    """Post-hoc corrections carried over from the old architecture.
+    """Post-hoc corrections, refitted against the cascade and measured on validation.
 
-    All three default OFF. Each was fitted against the unified 76-channel model on
-    whole-dog crops and none is assumed to transfer. Enable only with a measurement.
+    Both started OFF after the rebuild, because each learns a correction to one specific
+    model's residuals and neither was assumed to transfer. Both were then refitted on the
+    train split and scored on the 574-image validation split, which is what turned them
+    back on. Ablation, all-46 NME / PCK@5%:
+
+        neither          0.0346 / 80.6%      ear 0.0700   head 0.0443
+        + shape_refine   0.0339 / 81.7%      ear 0.0700   head 0.0277
+        + both           0.0294 / 84.4%      ear 0.0554   head 0.0277
+
+    The two are independent - one fixes ears, the other the skull top - and together
+    they are worth 15% of NME on top of the architecture change.
     """
 
-    ear_correct: bool = False
-    """Per-ear-type systematic bias subtraction. Ear-type multimodality is orthogonal
-    to resolution, so this is the one most likely to still be needed."""
+    ear_correct: bool = True
+    """Per-ear-type systematic bias subtraction, refitted on 3,274 train faces
+    (pointy 969 / half_floppy 630 / floppy 1,675). Ear NME 0.0700 -> 0.0554, -20.9%.
+    Ear-type multimodality is a property of the labels, not the crop, which is why this
+    survived the architecture change intact."""
 
-    shape_refine: bool = False
-    """Derive head_top_left/right from face geometry. May be obsolete: those points
-    failed on the old model at PCK@5% 0.6% partly because they sat at the edge of a
-    low-resolution crop, and a face-filling crop may let the network find them."""
+    shape_refine: bool = True
+    """Derive head_top_left/right from face geometry. This was expected to be obsolete -
+    those points failed on the old model partly because they sat at the edge of a
+    low-resolution crop, and the face-filling crop did fix most of it (0.1240 -> 0.0443
+    with no correction at all). But the residual is still systematic: the shape model
+    takes it to 0.0277, a further -37.5%, and PCK@5% from 65.9% to 91.2%."""
 
     subpixel: bool = True
     """Parabolic peak fitting when decoding heatmaps. Not a 'fix' like the other two -

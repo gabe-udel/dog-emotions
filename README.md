@@ -31,6 +31,24 @@ shipped face boxes and inferring on derived ones would mean the model never sees
 deployment distribution — different tightness, centring and aspect.
 `tests/test_facebox.py` asserts both call sites resolve to the same function object.
 
+## Results
+
+Test split, 479 held-out DogFLW images, scored once against the previous architecture:
+
+| | cascade | old unified | change |
+|---|---|---|---|
+| NME mean | **0.0313** | 0.0438 | **−28.6%** |
+| NME median | **0.0173** | 0.0319 | −45.7% |
+| PCK@5% | **84.1%** | 71.0% | +18.5% |
+| PCK@10% | **94.0%** | 92.5% | +1.6% |
+
+Every region improved: eye −49.6%, nose −49.8%, muzzle −56.9%, mouth −26.1%,
+head top −70.2%, ear −5.5%. Face box derived on 478 of 479 images. Per-region detail and
+the validation ablation that set the defaults are in **CLAUDE.md §10**.
+
+Ears remain the worst region (0.0596, PCK@5% 57.6%) and barely moved — as predicted, since
+ear-type multimodality is a label property rather than a resolution one.
+
 ## Why a cascade
 
 The previous architecture extended SuperAnimal's head from 39 to 76 channels and

@@ -1,11 +1,20 @@
 # CLAUDE.md — handoff notes
 
-Project state as of **2026-09-02**. The unified 76-channel model has been **replaced by a
-two-stage cascade**. The code is written and the data is built; **the face model has not
-been trained yet** — that is the next step and it was deliberately not run.
+Project state as of **2026-09-03**. The unified 76-channel model has been **replaced by a
+two-stage cascade**, which is **trained and evaluated**. On the same 479 held-out test
+images it beats the old architecture on **every region**:
 
-The previous architecture, with its full results, is frozen on the branch
-**`stable-pre-model-separation`**. If the cascade does not beat it, go back there.
+| | cascade | old unified | change |
+|---|---|---|---|
+| NME mean | **0.0313** | 0.0438 | **−28.6%** |
+| NME median | **0.0173** | 0.0319 | −45.7% |
+| PCK@5% | **84.1%** | 71.0% | +18.5% |
+| PCK@10% | **94.0%** | 92.5% | +1.6% |
+
+Model in use: `face_project/face1/snapshot-best-008.pt`. Full table in §10.
+
+The previous architecture is frozen on the branch **`stable-pre-model-separation`**, with
+a ready-to-run worktree at `../dog-emotion-stable`.
 
 ---
 
@@ -288,35 +297,63 @@ Refit and measure:
 
 ---
 
-## 10. Success criteria
+## 10. Results
 
-Report on the same 479 held-out test images, against the frozen baseline
-(`stable-pre-model-separation`, CLAUDE.md §12 on that branch):
+**Test split, 479 held-out images, scored once.** Config: σ=8 target, sub-pixel decoding,
+ear correction and shape model on, no head crop. Snapshot `face1/snapshot-best-008.pt`.
 
-| metric | baseline (76-ch unified) |
+| region | n | cascade | old unified | change | PCK@5% |
+|---|---|---|---|---|---|
+| eye | 8 | **0.0131** | 0.0261 | −49.6% | 98.7% |
+| nose | 7 | **0.0135** | 0.0269 | −49.8% | 99.1% |
+| muzzle | 4 | **0.0218** | 0.0505 | −56.9% | 97.2% |
+| mouth | 11 | **0.0240** | 0.0325 | −26.1% | 91.1% |
+| head top | 2 | **0.0262** | 0.0880 | **−70.2%** | 94.3% |
+| ear | 14 | **0.0596** | 0.0631 | −5.5% | 57.6% |
+| **all 46** | 46 | **0.0313** | 0.0438 | **−28.6%** | **84.1%** |
+
+Face box: 479 derived, 0 fallbacks, **1 failure (0.2%)** — one image where the detector
+found no dog at all, so stage 1 produced no anchors.
+
+**The confound is gone.** The old model's per-image NME *rose* with face size (r = +0.310)
+because face size was confounded with real camera resolution. Now:
+
+```
+  31 -  163 px  n=96  NME 0.0355        correlation NME vs box px: -0.078
+ 163 -  224 px  n=96  NME 0.0287        (unified model was +0.310)
+ 224 -  289 px  n=95  NME 0.0312
+ 289 -  385 px  n=96  NME 0.0304
+ 385 - 2233 px  n=96  NME 0.0305
+```
+
+Essentially flat. Scale normalisation did what it was built to do.
+
+### Scoring the predictions made in advance
+
+They were written down before training to keep this an experiment, and two were wrong:
+
+| prediction | outcome |
 |---|---|
-| NME mean | 0.0438 |
-| NME median | 0.0319 |
-| PCK@5% | 71.0% |
-| PCK@10% | 92.5% |
-| eye | 0.0261 |
-| nose | 0.0269 |
-| mouth | 0.0325 |
-| muzzle | 0.0505 |
-| ear | 0.0631 |
-| head top | 0.0880 |
+| substantial gains on eye/nose/mouth | ✅ −49.6% / −49.8% / −26.1% |
+| modest on muzzle | ❌ **wrong** — muzzle was among the largest gains, −56.9% |
+| little or none on ear | ✅ smallest gain, −5.5%, and still the worst region |
+| shape model probably obsolete now | ❌ **wrong** — still worth −37.5% on head top *on top of* the crop change |
+| ear correction should survive | ✅ transferred after refitting, −20.9% on ears |
 
-`evaluate_face.py` prints this comparison automatically, plus the face-box failure rate
-and NME broken out by face-box size.
+Ear error did **not** improve dramatically, so the leakage tripwire never fired.
 
-**Stated in advance, so this stays an experiment:** expect substantial gains on
-eye/nose/mouth (precision-limited by quantisation), modest on muzzle, and **little or none
-on ear** — ear-type multimodality is orthogonal to resolution. If ear error improves
-dramatically, be suspicious and check for split leakage first.
+### Validation ablation, which set the defaults
 
-Also worth watching: the old model's per-image NME *rose* with face size (r = +0.310),
-because face size was confounded with real camera resolution. If the cascade is doing its
-job that correlation should flatten, since every face now arrives at the same scale.
+574 val images. Both corrections are independent and both earn their place:
+
+| config | NME | PCK@5% | ear | head |
+|---|---|---|---|---|
+| neither | 0.0346 | 80.6% | 0.0700 | 0.0443 |
+| + shape_refine | 0.0339 | 81.7% | 0.0700 | 0.0277 |
+| + both | **0.0294** | **84.4%** | 0.0554 | 0.0277 |
+
+Test (0.0313) came out slightly worse than val (0.0294), as expected: val informed the
+decision to enable both corrections and test did not.
 
 ---
 
@@ -324,10 +361,12 @@ job that correlation should flatten, since every face now arrives at the same sc
 
 | item | state |
 |---|---|
-| **Train the face model** | not run. Everything upstream is built and tested |
-| Sweep `pad` on val | 1.8 is measured-for-containment, not measured-for-accuracy |
-| Sweep `pos_dist_thresh` | defaults to 8. On the old whole-dog crop 8 was worse than 17, but the landmarks are ~1.8x further apart in grid units now, so that result does not transfer |
-| Re-measure the quarantined fixes | §9 |
+| ~~Train the face model~~ | **done** — 8 epochs, 181 min, §10 |
+| ~~Re-measure the quarantined fixes~~ | **done** — both help, both now default ON |
+| **Ears remain the worst region** | 0.0596, PCK@5% 57.6%, and 6 of the 6 worst landmarks. The cascade barely moved them (−5.5%), exactly as predicted: this is label multimodality, not resolution. A per-ear-type *head* — or dropping the dense contour sampling to base+tip — is the next real idea |
+| Sweep `pad` on val | 1.8 was measured for containment, never for accuracy. 1.4 would give ~51 heatmap cells instead of ~40 but contains all 46 landmarks in only 78.6% of images |
+| Sweep `pos_dist_thresh` | 8 was used on the reasoning that landmarks are ~1.8x further apart in grid units now. Never swept against 17 or 4 on this architecture |
+| More epochs | the curve was flattening at 8 (Δ RMSE −0.16) but had not stopped. Resume from `snapshot-best-008.pt` |
 | Qualitative figures | `make_figures.py` was deleted with the architecture it documented |
 | The DogFLW landmark manual | still behind a dead link; §6 naming remains inferred |
 

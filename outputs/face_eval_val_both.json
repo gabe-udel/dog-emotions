@@ -1,0 +1,182 @@
+{
+  "n_images": 574,
+  "n_scored": 574,
+  "n_unreadable": 0,
+  "box": {
+    "n": 574,
+    "derived": 574,
+    "fallback": 0,
+    "failed": 0,
+    "fallback_rate": 0.0,
+    "failure_rate": 0.0,
+    "no_dog": 0
+  },
+  "all": {
+    "nme": 0.029432182735362737,
+    "median": 0.016662259865952947,
+    "pck5": 0.8443038933494925,
+    "pck10": 0.9507650356006666
+  },
+  "regions": {
+    "ear": {
+      "nme": 0.05537010698023435,
+      "median": 0.03978777017342691,
+      "pck5": 0.5993031358885017,
+      "pck10": 0.8547784967645595,
+      "n": 14
+    },
+    "head": {
+      "nme": 0.027681867981838068,
+      "median": 0.02450965046500792,
+      "pck5": 0.912020905923345,
+      "pck10": 0.9939024390243902,
+      "n": 2
+    },
+    "eye": {
+      "nme": 0.012349444863733582,
+      "median": 0.009919697882345143,
+      "pck5": 0.9867160278745645,
+      "pck10": 0.9967334494773519,
+      "n": 8
+    },
+    "nose": {
+      "nme": 0.012483098223052224,
+      "median": 0.010170729855122195,
+      "pck5": 0.9897959183673469,
+      "pck10": 0.9977600796416127,
+      "n": 7
+    },
+    "muzzle": {
+      "nme": 0.020045479260686828,
+      "median": 0.017605965416835852,
+      "pck5": 0.9773519163763066,
+      "pck10": 0.9969512195121951,
+      "n": 4
+    },
+    "mouth": {
+      "nme": 0.023361455329613385,
+      "median": 0.01611177853520069,
+      "pck5": 0.89927146024707,
+      "pck10": 0.984954070319924,
+      "n": 11
+    }
+  },
+  "per_landmark": {
+    "ear_right_inner_base": 0.03199159726479759,
+    "ear_left_inner_base": 0.02928251639780435,
+    "ear_right_inner_mid": 0.053248446407683905,
+    "ear_left_inner_mid": 0.042741247975128266,
+    "ear_right_inner_low": 0.07228315743283754,
+    "ear_left_inner_low": 0.061059237579374266,
+    "ear_right_tip": 0.03929104352411848,
+    "ear_left_tip": 0.040679657137876815,
+    "ear_right_outer_low": 0.07829329017737065,
+    "ear_left_outer_low": 0.06385623052391066,
+    "ear_right_outer_mid": 0.08128563680479048,
+    "ear_left_outer_mid": 0.06605235221497027,
+    "ear_right_outer_base": 0.05804831472956135,
+    "ear_left_outer_base": 0.05706876955305625,
+    "head_top_right": 0.027995521621676196,
+    "head_top_left": 0.027368214341999937,
+    "eye_right_medial": 0.0122135375172893,
+    "eye_left_medial": 0.01350454268193161,
+    "eye_right_lateral": 0.011732553146569513,
+    "eye_left_lateral": 0.014177914993811627,
+    "eye_right_upper_lid": 0.01017573363530602,
+    "eye_left_upper_lid": 0.014861562191536346,
+    "eye_right_lower_lid": 0.009872330233636803,
+    "eye_left_lower_lid": 0.012257384509787429,
+    "nose_bridge": 0.016658592993822583,
+    "nose_top": 0.010850714618355312,
+    "nostril_right": 0.012738738322732018,
+    "nostril_left": 0.0155272846956719,
+    "muzzle_right_upper": 0.018652470453409294,
+    "muzzle_left_upper": 0.017240941123351835,
+    "cheek_right": 0.019007808027442296,
+    "cheek_left": 0.02528069743854389,
+    "nose_bottom": 0.009343535995597802,
+    "nose_right_lower": 0.010809162592554364,
+    "nose_left_lower": 0.011453658342631578,
+    "philtrum": 0.009630578668871478,
+    "lip_upper_right": 0.021391449941795725,
+    "lip_upper_left": 0.024518932550713298,
+    "mouth_center": 0.012358939165117674,
+    "mouth_corner_right": 0.03628973867779787,
+    "mouth_corner_left": 0.04929993575487375,
+    "chin_upper": 0.016830889307989264,
+    "chin_bottom": 0.020768319953247717,
+    "lip_lower_right": 0.023711372646380124,
+    "lip_lower_left": 0.024276699784154428,
+    "lip_lower_center": 0.017899152174805866
+  },
+  "by_box_size": [
+    {
+      "box_px_lo": 29.925,
+      "box_px_hi": 160.22812500000003,
+      "n": 115,
+      "nme": 0.031709799014945576
+    },
+    {
+      "box_px_lo": 160.22812500000003,
+      "box_px_hi": 232.250625,
+      "n": 115,
+      "nme": 0.02750604495272952
+    },
+    {
+      "box_px_lo": 232.250625,
+      "box_px_hi": 301.7025,
+      "n": 114,
+      "nme": 0.02813460542731241
+    },
+    {
+      "box_px_lo": 301.7025,
+      "box_px_hi": 394.2675000000001,
+      "n": 115,
+      "nme": 0.02897233257561724
+    },
+    {
+      "box_px_lo": 394.2675000000001,
+      "box_px_hi": 1054.3500010000002,
+      "n": 115,
+      "nme": 0.03082684842526936
+    },
+    {
+      "correlation_nme_vs_box_px": 0.012321704103562172
+    }
+  ],
+  "config": {
+    "facebox": {
+      "pad": 1.8,
+      "anchor_conf": 0.1,
+      "min_anchors": 3,
+      "min_side_px": 16.0,
+      "fallback": "dog_box_upper",
+      "fallback_frac": 0.55,
+      "square": true
+    },
+    "crop": {
+      "size": 256,
+      "border_value": 0
+    },
+    "train": {
+      "n_keypoints": 46,
+      "pos_dist_thresh": 8,
+      "crop": 256,
+      "batch_size": 8,
+      "epochs": 4,
+      "lr_backbone": 1e-05,
+      "lr_head": 0.001,
+      "unfreeze": "stage4",
+      "box_jitter_scale": 0.2,
+      "box_jitter_translate": 0.1,
+      "seed": 42
+    },
+    "post": {
+      "ear_correct": true,
+      "shape_refine": true,
+      "subpixel": true,
+      "min_confidence": 0.35
+    }
+  },
+  "split": "val"
+}

@@ -94,6 +94,35 @@ class Cascade:
         self.face_model, self.face_cfg = load_face_model(face_config, face_snapshot,
                                                          device)
         self.n_face = self.cfg.train.n_keypoints
+        self.ear_corrector, self.refiner = self._load_post()
+
+    def _load_post(self):
+        """Load the quarantined corrections, only when the config enables them.
+
+        These live here rather than in each caller so that evaluation and video
+        rendering apply exactly the same post-processing. They previously lived only in
+        run_video.py, which meant `evaluate_face.py --shape-refine` accepted the flag
+        and silently did nothing - producing an ablation that looked like "no effect"
+        when the correction had never run at all.
+        """
+        ear = refiner = None
+        if self.cfg.post.ear_correct:
+            from ear_correct import EarCorrector
+            ear = EarCorrector()
+        if self.cfg.post.shape_refine:
+            from shape_refine import Refiner
+            refiner = Refiner()
+        return ear, refiner
+
+    def apply_post(self, face: np.ndarray) -> np.ndarray:
+        """Apply whichever corrections the config enabled, in place. Order matters:
+        ear correction reads the reliable landmarks, and the shape model overwrites
+        head_top from them, so ears are corrected against untouched inputs first."""
+        if self.ear_corrector is not None:
+            self.ear_corrector.apply(face)
+        if self.refiner is not None:
+            self.refiner.apply(face)
+        return face
 
     # ---------------------------------------------------------------- stage 1
 
@@ -143,7 +172,7 @@ class Cascade:
         pts = decode_heatmaps(heat, stride=stride,
                               subpixel=self.cfg.post.subpixel,
                               n_keypoints=self.n_face)[0]
-        return _to_image(pts, transform)
+        return self.apply_post(_to_image(pts, transform))
 
     # ---------------------------------------------------------------- both
 
