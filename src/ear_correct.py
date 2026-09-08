@@ -97,6 +97,15 @@ class EarCorrector:
         self.clf, self.bias = m["clf"], m["bias"]
         self.ear = [int(v) for v in m["ear"]]
         self.rel = [int(v) for v in m["rel"]]
+        # Same guard shape_refine.Refiner carries, and for the same reason. A model
+        # fitted in 46-channel space stores indices that are all still valid on a
+        # 38-channel array - they just address different landmarks - so without this
+        # check the correction quietly subtracts an ear bias from the eyes.
+        if self.ear != EAR or self.rel != REL:
+            raise ValueError(
+                f"{path} was fitted for a different landmark set ({len(self.ear)} ear "
+                f"channels {self.ear} vs {EAR}). Refit with "
+                f"src/postfit.py --fit-ear --snapshot <ckpt>.")
 
     def apply(self, kpts: np.ndarray, pcut: float = 0.1) -> str | None:
         """Returns the predicted ear type, or None if the frame could not be used."""

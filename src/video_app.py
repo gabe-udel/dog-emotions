@@ -26,6 +26,12 @@ OUTDIR = ROOT / "outputs"
 VIDEO_TYPES = [("Video files", "*.mp4 *.mov *.avi *.mkv *.m4v *.webm *.wmv"),
                ("All files", "*.*")]
 
+# How many landmarks this source tree predicts. Read from keypoint_scheme rather than
+# written here, so the window cannot claim a count the code does not produce.
+sys.path.insert(0, str(ROOT / "src"))
+from keypoint_scheme import ACTIVE as _ACTIVE            # noqa: E402
+ACTIVE_N = len(_ACTIVE)
+
 # (label, extra run_video.py flags). First entry is the default.
 #
 # The old build offered a "side-by-side vs original" mode and a head-crop toggle. Both
@@ -39,6 +45,22 @@ DISPLAY_MODES = [
 ]
 
 
+def config_n_keypoints(cfg: Path) -> int | None:
+    """How many landmarks a checkpoint's config says it emits, or None if unreadable.
+
+    Read by text rather than by loading DeepLabCut: this runs in the GUI process at
+    startup, once per checkpoint, and importing the torch stack there would add seconds
+    to the window opening for a number that sits on one line of the yaml.
+    """
+    try:
+        for line in cfg.read_text(encoding="utf-8", errors="replace").splitlines():
+            if "num_heatmaps:" in line:
+                return int(line.split(":", 1)[1].strip())
+    except (OSError, ValueError):
+        pass
+    return None
+
+
 def discover_models() -> list[tuple[str, Path, Path, str]]:
     """(label, snapshot, config, tag) for every face-model checkpoint on disk.
 
@@ -46,18 +68,31 @@ def discover_models() -> list[tuple[str, Path, Path, str]]:
     alongside the pytorch_config.yaml that describes them, and `model_weights/` for a
     released checkpoint that ships with a matching .yaml. A snapshot is only offered if
     its config can be found - the architecture has to match or loading fails obscurely.
+
+    The landmark count goes in the label. A checkpoint trained for a different set is
+    still listed, because hiding it would look like the file had gone missing, but it is
+    marked so the mismatch is visible BEFORE a run rather than as an error afterwards.
+    `cascade.checkpoint_n_keypoints` is what actually refuses it.
     """
     out: list[tuple[str, Path, Path, str]] = []
+
+    def label(stem: str, cfg: Path) -> str:
+        n = config_n_keypoints(cfg)
+        if n is None:
+            return f"{stem}  (landmark count unknown)"
+        return f"{stem}  -  {n} landmarks" + ("" if n == ACTIVE_N else "  [INCOMPATIBLE]")
+
     for run in sorted(FACE_PROJECT.glob("*/")):
         cfg = run / "pytorch_config.yaml"
         if not cfg.exists():
             continue
         for pt in sorted(run.glob("snapshot-*.pt"), reverse=True):
-            out.append((f"{run.name} / {pt.stem}", pt, cfg, f"{run.name}-{pt.stem}"))
+            out.append((label(f"{run.name} / {pt.stem}", cfg), pt, cfg,
+                        f"{run.name}-{pt.stem}"))
     for pt in sorted(WEIGHTS.glob("*.pt")):
         cfg = pt.with_suffix(".yaml")
         if cfg.exists():
-            out.append((f"released / {pt.stem}", pt, cfg, pt.stem[:16]))
+            out.append((label(f"released / {pt.stem}", cfg), pt, cfg, pt.stem[:16]))
     return out
 
 
@@ -78,18 +113,19 @@ class App:
         ttk.Label(head, text="Dog face keypoints",
                   font=("Segoe UI", 15, "bold")).pack(anchor="w")
         ttk.Label(head, foreground="#666",
-                  text="SuperAnimal-Quadruped fine-tuned on DogFLW - 76 keypoints "
-                       "(39 body + 37 facial).").pack(anchor="w")
+                  text=f"Two-stage cascade: stock SuperAnimal-Quadruped for the body "
+                       f"(39 keypoints),\na DogFLW-trained model for the face "
+                       f"({ACTIVE_N} landmarks).").pack(anchor="w")
 
         mf = ttk.LabelFrame(root, text="1. Model")
         mf.pack(fill="x", **pad)
         mrow = ttk.Frame(mf)
         mrow.pack(fill="x", padx=10, pady=10)
         self.models = discover_models()
-        self.model_box = ttk.Combobox(mrow, state="readonly", width=46,
+        self.model_box = ttk.Combobox(mrow, state="readonly", width=52,
                                       values=[m[0] for m in self.models])
         if self.models:
-            self.model_box.current(0)
+            self.model_box.current(self.first_compatible())
         self.model_box.pack(side="left")
         self.model_box.bind("<<ComboboxSelected>>", self.on_model)
         ttk.Button(mrow, text="Refresh", command=self.refresh_models).pack(side="left", padx=8)
@@ -134,22 +170,26 @@ class App:
 
         hrow = ttk.Frame(opts)
         hrow.pack(fill="x", padx=10, pady=(2, 0))
-        # Both corrections were fitted against the OLD unified model and have not been
-        # re-measured on the cascade, so both start off. Turning one on is an
-        # experiment, not an improvement, until evaluate_face.py says otherwise on val.
+        # Each correction learns one specific model's residuals, so neither survives a
+        # change of landmark set. The files on disk are whatever postfit.py last wrote;
+        # both loaders now verify that against keypoint_scheme.ACTIVE and raise rather
+        # than address the wrong channels, so a stale fit fails the run instead of
+        # quietly subtracting an ear bias from the eyes.
         self.ear_correct = tk.BooleanVar(value=False)
         ttk.Checkbutton(hrow, variable=self.ear_correct,
-                        text="Ear-type bias correction (unmeasured on this model)"
+                        text="Ear-type bias correction"
                         ).pack(side="left")
         self.shape_refine = tk.BooleanVar(value=False)
         ttk.Checkbutton(hrow, variable=self.shape_refine,
-                        text="Shape model for skull top (unmeasured)"
+                        text="Shape model for skull top"
                         ).pack(side="left", padx=(18, 0))
         ttk.Label(opts, foreground="#888", justify="left",
-                  text="The two checkboxes are carried over from the previous architecture and are\n"
-                       "OFF until re-measured. Both learn a correction to one specific model's\n"
-                       "errors, and this is a different model - fit them with postfit.py and score\n"
-                       "them with evaluate_face.py --split val before trusting either.\n"
+                  text="Both were worth having on the 46-landmark model (ear NME -20.9%, skull\n"
+                       "top -37.5%), but a fit does not transfer across landmark sets. If the\n"
+                       "fitted file on disk was made for a different set the run stops with a\n"
+                       "message naming the refit command, rather than correcting wrong channels.\n"
+                       "Refit:  postfit.py --fit-ear --fit-shape --snapshot <ckpt>\n"
+                       "Score on val before trusting either:  evaluate_face.py --split val\n"
                   ).pack(anchor="w", padx=10, pady=(0, 2))
         ttk.Label(opts, foreground="#888", justify="left",
                   text="Confidence is a visibility control, NOT a quality knob - on the previous\n"
@@ -223,14 +263,36 @@ class App:
         i = self.model_box.current()
         return self.models[i] if 0 <= i < len(self.models) else None
 
+    def first_compatible(self) -> int:
+        """Preselect a checkpoint this code can actually run.
+
+        Index 0 is not safe: runs are listed alphabetically, so an older run trained for
+        a different landmark set sorts ahead of the current one and would be the default
+        pick - the single option guaranteed to fail.
+        """
+        for i, (_lbl, _pt, cfg, _tag) in enumerate(self.models):
+            if config_n_keypoints(cfg) == ACTIVE_N:
+                return i
+        return 0
+
     def on_model(self, _evt=None):
         m = self.current_model()
         if not m:
             self.lbl_model.configure(text="")
             return
         _, pt, cfg, _tag = m
+        n = config_n_keypoints(cfg)
         self.lbl_model.configure(
             text=f"{pt.name}  ({pt.stat().st_size/1e6:.0f} MB)   config: {cfg.name}")
+        if n is not None and n != ACTIVE_N:
+            self.write(
+                f"\nThis checkpoint predicts {n} landmarks; this code predicts "
+                f"{ACTIVE_N}.\nRunning it is refused rather than silently mislabelling "
+                f"every point.\nPick a {ACTIVE_N}-landmark checkpoint, or check out the "
+                f"source that matches this one.\n")
+            self.set_status(f"Selected model is {n}-landmark - incompatible", "#b3402f")
+        else:
+            self.set_status("Ready")
 
     def refresh_models(self):
         """Re-scan model_weights/ - lets a training run that finished mid-session appear."""
@@ -239,7 +301,8 @@ class App:
         self.model_box.configure(values=[m[0] for m in self.models])
         if self.models:
             labels = [m[0] for m in self.models]
-            self.model_box.current(labels.index(keep) if keep in labels else 0)
+            self.model_box.current(labels.index(keep) if keep in labels
+                                   else self.first_compatible())
             self.write(f"\nFound {len(self.models)} model(s): "
                        f"{', '.join(m[1].name for m in self.models)}\n")
         self.on_model()

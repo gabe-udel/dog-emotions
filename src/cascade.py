@@ -57,6 +57,50 @@ class FrameResult:
         return self.face is not None
 
 
+def _find_key(node: object, key: str) -> object | None:
+    """First value for `key` anywhere in a nested config. Structure-agnostic on purpose:
+    DeepLabCut has moved this field between releases."""
+    if isinstance(node, dict):
+        if key in node:
+            return node[key]
+        for v in node.values():
+            found = _find_key(v, key)
+            if found is not None:
+                return found
+    elif isinstance(node, (list, tuple)):
+        for v in node:
+            found = _find_key(v, key)
+            if found is not None:
+                return found
+    return None
+
+
+def checkpoint_n_keypoints(face_cfg: dict, expected: int) -> int:
+    """How many landmarks this CHECKPOINT emits, checked against what this code expects.
+
+    Two different facts that were being conflated. `TrainConfig.n_keypoints` describes
+    the landmark set this source tree predicts (`keypoint_scheme.ACTIVE`); the
+    checkpoint's own pytorch_config.yaml describes the set it was trained for. Taking
+    the first as the second fails silently and expensively: a 46-channel checkpoint read
+    as 38 divides the crop by the wrong number to get the heatmap stride, and every
+    landmark then carries a neighbour's identity. The output still looks like a face, so
+    nothing about the rendered video says it is wrong.
+
+    Refusing is the only safe answer - the two sets are not a resize apart, they are
+    different channels in a different order.
+    """
+    found = _find_key(face_cfg, "num_heatmaps")
+    if found is None or int(found) == expected:
+        return expected
+    raise ValueError(
+        f"this checkpoint predicts {found} landmarks, but this source tree predicts "
+        f"{expected} (keypoint_scheme.ACTIVE). Decoding one as the other is silently "
+        f"wrong, so it is refused.\n"
+        f"  - to run a 38-landmark checkpoint: pick one from face_project/face38/\n"
+        f"  - to run the 46-landmark face1 model: check out the source it was trained "
+        f"with,\n      git worktree add ../dog-emotion-46kp 8437a6f^")
+
+
 def preprocess(crop_bgr: np.ndarray) -> torch.Tensor:
     """BGR uint8 crop -> normalised NCHW float tensor, matching DLC's inference config."""
     rgb = cv2.cvtColor(crop_bgr, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
@@ -93,7 +137,8 @@ class Cascade:
             device=device, max_individuals=1, with_detector=with_detector)
         self.face_model, self.face_cfg = load_face_model(face_config, face_snapshot,
                                                          device)
-        self.n_face = self.cfg.train.n_keypoints
+        self.n_face = checkpoint_n_keypoints(self.face_cfg,
+                                             self.cfg.train.n_keypoints)
         self.ear_corrector, self.refiner = self._load_post()
 
     def _load_post(self):
