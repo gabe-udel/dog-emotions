@@ -23,7 +23,7 @@ import numpy as np
 import ear_correct
 import shape_refine
 import splits as splits_mod
-from cascade import Cascade
+from cascade import Cascade, config_beside
 from faceconfig import CascadeConfig, PostConfig
 from keypoint_scheme import ACTIVE
 
@@ -66,7 +66,8 @@ def load_ear_types(path: str = "data/ear_types.csv") -> dict[str, str]:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--config", default="face_project/face1/pytorch_config.yaml")
+    ap.add_argument("--config", default=None,
+                    help="defaults to the pytorch_config.yaml beside --snapshot")
     ap.add_argument("--snapshot", required=True)
     ap.add_argument("--splits", default="data/splits.json")
     ap.add_argument("--annotations", default="data/dogflw/annotations.json")
@@ -94,7 +95,7 @@ def main() -> None:
         # The ear bias is a property of a specific model's residuals, so this one does
         # need the checkpoint.
         cfg = CascadeConfig(post=PostConfig(ear_correct=False, shape_refine=False))
-        cascade = Cascade(a.config, a.snapshot, cfg=cfg)
+        cascade = Cascade(a.config or config_beside(a.snapshot), a.snapshot, cfg=cfg)
         print(f"running the cascade over {len(train_ids)} train images", flush=True)
         pred, truth, kept = predict_split(cascade, records, train_ids, a.limit)
         etypes = load_ear_types()

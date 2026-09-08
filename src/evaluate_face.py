@@ -22,7 +22,7 @@ import cv2
 import numpy as np
 
 import splits as splits_mod
-from cascade import Cascade
+from cascade import Cascade, config_beside
 from faceconfig import CascadeConfig, FaceBoxConfig, PostConfig
 from keypoint_scheme import ACTIVE, DOGFLW_NAMES, DROP_EAR_CONTOUR, REGION_OF
 
@@ -191,7 +191,8 @@ def report(res: dict, split: str) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--split", choices=["val", "test"], default="val")
-    ap.add_argument("--config", default="face_project/face1/pytorch_config.yaml")
+    ap.add_argument("--config", default=None,
+                    help="defaults to the pytorch_config.yaml beside --snapshot")
     ap.add_argument("--snapshot", required=True)
     ap.add_argument("--splits", default="data/splits.json")
     ap.add_argument("--annotations", default="data/dogflw/annotations.json")
@@ -216,7 +217,7 @@ def main() -> None:
     if a.split == "test":
         print("NOTE: scoring the TEST split. Tune on val; touch this once.\n")
 
-    cascade = Cascade(a.config, a.snapshot, cfg=cfg)
+    cascade = Cascade(a.config or config_beside(a.snapshot), a.snapshot, cfg=cfg)
     res = evaluate(cascade, records, ids, limit=a.limit)
     res["config"] = cfg.to_dict()
     res["split"] = a.split

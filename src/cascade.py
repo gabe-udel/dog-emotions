@@ -57,6 +57,24 @@ class FrameResult:
         return self.face is not None
 
 
+def config_beside(snapshot: str | Path) -> str:
+    """The pytorch_config.yaml that belongs to a snapshot: the one in its own directory.
+
+    Training writes the two together, and they are only meaningful together - the config
+    is the architecture the weights are shaped for. Every CLI here used to default
+    --config to one hard-coded run, which silently paired the wrong config with a
+    snapshot from any other run. Deriving it removes the mismatch instead of diagnosing
+    it later.
+    """
+    cfg = Path(snapshot).resolve().parent / "pytorch_config.yaml"
+    if not cfg.exists():
+        raise SystemExit(
+            f"no pytorch_config.yaml beside {snapshot}.\n"
+            f"  expected: {cfg}\n"
+            f"  pass --config explicitly if the config lives elsewhere.")
+    return str(cfg)
+
+
 def _find_key(node: object, key: str) -> object | None:
     """First value for `key` anywhere in a nested config. Structure-agnostic on purpose:
     DeepLabCut has moved this field between releases."""

@@ -19,7 +19,7 @@ import cv2
 import numpy as np
 
 import superanimal as sa
-from cascade import Cascade, FrameResult
+from cascade import Cascade, FrameResult, config_beside
 from draw import REGION_COLOR, SA_COLOR, Renderer, banner, legend
 from faceconfig import CascadeConfig, FaceBoxConfig, PostConfig
 from keypoint_scheme import ACTIVE, REGION_OF
@@ -87,7 +87,8 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--video", required=True)
     ap.add_argument("--out", default="outputs/cascade.mp4")
-    ap.add_argument("--config", default="face_project/face1/pytorch_config.yaml")
+    ap.add_argument("--config", default=None,
+                    help="defaults to the pytorch_config.yaml beside --snapshot")
     ap.add_argument("--snapshot", required=True)
     ap.add_argument("--width", type=int, default=960)
     ap.add_argument("--start-frame", type=int, default=0)
@@ -117,7 +118,7 @@ def main() -> None:
     paths, fps = extract_frames(a.video, scratch, a.width, a.start_frame, a.max_frames)
     print(f"{len(paths)} frames at {fps:.1f} fps", flush=True)
 
-    cascade = Cascade(a.config, a.snapshot, cfg=cfg)
+    cascade = Cascade(a.config or config_beside(a.snapshot), a.snapshot, cfg=cfg)
     if cascade.ear_corrector is not None:
         print("[post] ear correction ON (quarantined - measure it on val)", flush=True)
     if cascade.refiner is not None:
