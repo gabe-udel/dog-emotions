@@ -34,11 +34,15 @@ from pathlib import Path
 
 import numpy as np
 
-from keypoint_scheme import REGION_OF
+from keypoint_scheme import ACTIVE, REGION_OF
 
 MODEL_PATH = Path("data/ear_bias.pkl")
-EAR = [d for d in range(46) if REGION_OF[d] == "ear"]
-REL = [d for d in range(46) if REGION_OF[d] not in ("ear", "head")]
+# CHANNEL indices, not DogFLW indices. The two coincided while all 46 landmarks were
+# active; with the eight sliding ear-contour points dropped they no longer do, and
+# indexing a 38-channel prediction array by a DogFLW index would silently read the
+# wrong landmark.
+EAR = [k for k, d in enumerate(ACTIVE) if REGION_OF[d] == "ear"]
+REL = [k for k, d in enumerate(ACTIVE) if REGION_OF[d] not in ("ear", "head")]
 TYPES = ["pointy", "half_floppy", "floppy"]
 MIN_PER_TYPE = 10
 

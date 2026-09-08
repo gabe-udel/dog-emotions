@@ -35,7 +35,7 @@ from pathlib import Path
 import torch
 
 from faceconfig import CascadeConfig, TrainConfig
-from keypoint_scheme import DOGFLW_NAMES
+from keypoint_scheme import ACTIVE, ACTIVE_NAMES
 
 PROJECT = Path("face_project")
 HEAD_W = "heads.bodypart.heatmap_head.deconv_layers.0.weight"
@@ -226,7 +226,7 @@ def main() -> None:
     a = ap.parse_args()
 
     tc = TrainConfig(
-        n_keypoints=len(DOGFLW_NAMES), pos_dist_thresh=a.pos_dist_thresh, crop=a.crop,
+        n_keypoints=len(ACTIVE), pos_dist_thresh=a.pos_dist_thresh, crop=a.crop,
         batch_size=a.batch_size, epochs=a.epochs, lr_backbone=a.lr_backbone,
         lr_head=a.lr_head, unfreeze=a.unfreeze, box_jitter_scale=a.jitter_scale,
         box_jitter_translate=a.jitter_translate,
@@ -240,7 +240,7 @@ def main() -> None:
 
     from facedata import FaceLoader
 
-    bodyparts = [DOGFLW_NAMES[i] for i in range(tc.n_keypoints)]
+    bodyparts = list(ACTIVE_NAMES)
     cfg = build_config(tc, bodyparts, a.detector, a.workers, a.eval_every,
                        a.max_snapshots, a.save_epochs)
 

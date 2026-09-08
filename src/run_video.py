@@ -22,7 +22,7 @@ import superanimal as sa
 from cascade import Cascade, FrameResult
 from draw import REGION_COLOR, SA_COLOR, Renderer, banner, legend
 from faceconfig import CascadeConfig, FaceBoxConfig, PostConfig
-from keypoint_scheme import REGION_OF
+from keypoint_scheme import ACTIVE, REGION_OF
 
 
 def extract_frames(video: str, scratch: Path, width: int, start: int,
@@ -72,11 +72,14 @@ def temporal_median(seq: list[np.ndarray | None], k: int) -> list[np.ndarray | N
 
 
 def face_legend_entries() -> list[tuple[str, tuple[int, int, int]]]:
+    """Counts come from ACTIVE, so the legend cannot claim points the model no longer
+    predicts - the ear row reads 6, not 14."""
     counts: dict[str, int] = {}
-    for d in range(46):
+    for d in ACTIVE:
         counts[REGION_OF[d]] = counts.get(REGION_OF[d], 0) + 1
     entries = [(f"{r} ({counts[r]})", REGION_COLOR[r])
-               for r in ("ear", "head", "eye", "nose", "muzzle", "mouth")]
+               for r in ("ear", "head", "eye", "nose", "muzzle", "mouth")
+               if counts.get(r)]
     return entries + [("body (39)", SA_COLOR)]
 
 
@@ -156,14 +159,14 @@ def main() -> None:
         if faces[i] is not None:
             drawn.append(int((faces[i][:, 2] >= a.pcut).sum()))
         banner(img, "SuperAnimal body + DogFLW face cascade",
-               sub=f"39 body + 46 face  |  conf >= {a.pcut}")
+               sub=f"39 body + {len(ACTIVE)} face  |  conf >= {a.pcut}")
         if not a.no_legend:
             legend(img, face_legend_entries(), org=(18, h - 170))
         vw.write(img)
     vw.release()
 
     if drawn:
-        print(f"DRAWN: {np.mean(drawn):.1f}/46 face landmarks per frame "
+        print(f"DRAWN: {np.mean(drawn):.1f}/{len(ACTIVE)} face landmarks per frame "
               f"(min {min(drawn)}, max {max(drawn)}) at conf >= {a.pcut}")
     print(f"wrote {a.out}  ({time.time() - t0:.1f}s total)")
 

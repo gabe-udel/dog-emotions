@@ -104,6 +104,57 @@ assert len(RELIABLE) + len(UNRELIABLE) == 46
 
 
 # ---------------------------------------------------------------------------------
+# THE ACTIVE LANDMARK SET: 38 of the 46.
+#
+# The eight dropped points are the ear-contour samples that sit along a smooth edge
+# with no local feature marking where each one belongs. They are annotation-
+# indeterminate, not badly detected, and that was measured rather than assumed:
+# decomposing each ear landmark's error against the local tangent of the ground-truth
+# contour gives the component ALONG the edge against the component ACROSS it.
+#
+#     ear_left_outer_low    0.0538 along / 0.0287 across   1.87x
+#     ear_left_outer_mid    0.0560 / 0.0324                1.73x
+#     ear_right_inner_mid   0.0455 / 0.0304                1.50x
+#     ear_right_outer_mid   0.0638 / 0.0473                1.35x
+#     ear_*_base            ~1.0-1.4x
+#     ear_left_tip          0.0250 / 0.0285                0.88x
+#     ear_right_tip         0.0238 / 0.0328                0.73x
+#     eye contour (control) 0.0065 / 0.0083                0.78x
+#
+# The gradient tracks how anatomically defined each point is. The tips sit in the same
+# regime as the eye control - the model finds them properly. The mid-contour points
+# slide. Two annotators would disagree about them the same way, so no amount of extra
+# data teaches a function that does not exist; the fix is to stop asking.
+#
+# What survives per ear: inner_base (where the pinna meets the skull), tip (the apex),
+# outer_base (the far junction). Ear ORIENTATION - the part that carries meaning for
+# emotion work - is a base->tip vector, which these three preserve exactly.
+#
+# Measured NME on the 46-channel model's test split: the six kept points averaged
+# 0.0447, the eight dropped ones 0.0708.
+#
+# IMPORTANT: NME over 38 landmarks is NOT comparable to NME over 46. Dropping the
+# hardest points lowers the mean without improving any prediction. Compare per-landmark,
+# or compare the same subset.
+DROP_EAR_CONTOUR = [2, 3, 4, 5, 8, 9, 10, 11]
+
+ACTIVE = [i for i in range(46) if i not in DROP_EAR_CONTOUR]              # 38
+"""DogFLW indices the model predicts, in channel order. Model channel k is ACTIVE[k]."""
+
+CH_OF = {d: k for k, d in enumerate(ACTIVE)}
+"""DogFLW index -> model channel. Use this anywhere a DogFLW index meets a prediction
+array; the two were the same thing while all 46 were active and are not any more."""
+
+ACTIVE_NAMES = [DOGFLW_NAMES[d] for d in ACTIVE]
+
+assert len(ACTIVE) == 38 and len(DROP_EAR_CONTOUR) == 8
+assert all(REGION_OF[d] == "ear" for d in DROP_EAR_CONTOUR)
+assert [DOGFLW_NAMES[d] for d in ACTIVE if REGION_OF[d] == "ear"] == [
+    "ear_right_inner_base", "ear_left_inner_base", "ear_right_tip", "ear_left_tip",
+    "ear_right_outer_base", "ear_left_outer_base"]
+
+
+# ---------------------------------------------------------------------------------
 # Optional trim: drop dense *contour* sampling, keep every functional landmark.
 # Enable with `analyze_correspondence.py --trim`.  76 outputs -> 63.
 #

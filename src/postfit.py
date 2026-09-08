@@ -25,6 +25,7 @@ import shape_refine
 import splits as splits_mod
 from cascade import Cascade
 from faceconfig import CascadeConfig, PostConfig
+from keypoint_scheme import ACTIVE
 
 
 def predict_split(cascade: Cascade, records: list[dict], ids: set[str],
@@ -46,7 +47,7 @@ def predict_split(cascade: Cascade, records: list[dict], ids: set[str],
         if res.face is None:
             continue
         pred.append(res.face)
-        truth.append(lm)
+        truth.append(lm[ACTIVE])       # channel order, to match the predictions
         kept.append(rec["id"])
         if (i + 1) % 100 == 0:
             print(f"  {i + 1}/{len(todo)}", flush=True)
@@ -82,11 +83,12 @@ def main() -> None:
 
     if a.fit_shape:
         # The shape model needs ground truth only - no inference required, so it does
-        # not depend on which checkpoint exists yet.
+        # not depend on which checkpoint exists yet. Subset to ACTIVE so the fitted
+        # coefficients are in channel order, matching what Refiner.apply indexes.
         truth = np.stack([np.asarray(r["landmarks"], float) for r in records
                           if r["id"] in train_ids
                           and np.isfinite(np.asarray(r["landmarks"], float)).all()])
-        shape_refine.fit(truth)
+        shape_refine.fit(truth[:, ACTIVE])
 
     if a.fit_ear:
         # The ear bias is a property of a specific model's residuals, so this one does

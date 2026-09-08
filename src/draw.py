@@ -64,17 +64,25 @@ class Renderer:
     """
 
     def __init__(self, sa_bodyparts: list[str]):
-        from keypoint_scheme import DOGFLW_NAMES, REGION_OF
+        from keypoint_scheme import ACTIVE, CH_OF, DOGFLW_NAMES, REGION_OF
         self.sa_bodyparts = list(sa_bodyparts)
         self.idx = {b: i for i, b in enumerate(self.sa_bodyparts)}
         self.dogflw_names = DOGFLW_NAMES
         self.region_of = REGION_OF
+        self.active = list(ACTIVE)
         self.sa_edges = [(self.idx[a], self.idx[b]) for a, b in SA_EDGES
                          if a in self.idx and b in self.idx]
-        self.face_contours = [c for c in FACE_CONTOURS if len(c) > 1]
+        # FACE_CONTOURS is written in DogFLW indices; the face array is in CHANNEL
+        # order. Translate, dropping points the model no longer predicts - a contour
+        # reduced to fewer than two surviving points draws nothing.
+        self.face_contours = [seg for seg in
+                              ([CH_OF[i] for i in c if i in CH_OF]
+                               for c in FACE_CONTOURS)
+                              if len(seg) > 1]
 
-    def face_colour(self, dogflw_idx: int):
-        return REGION_COLOR[self.region_of[dogflw_idx]]
+    def face_colour(self, channel: int):
+        """Colour for a model channel, resolved through its DogFLW index."""
+        return REGION_COLOR[self.region_of[self.active[channel]]]
 
     def draw(self, img, body=None, face=None, pcut=0.25, r=3, thick=1, scale=1.0,
              lines=True, face_only=False):

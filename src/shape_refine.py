@@ -30,15 +30,17 @@ from pathlib import Path
 
 import numpy as np
 
-from keypoint_scheme import DOGFLW_NAMES, REGION_OF
+from keypoint_scheme import ACTIVE, CH_OF, DOGFLW_NAMES, REGION_OF
 
 MODEL_PATH = Path("data/shape_model.npz")
 
-# Landmarks the shape model predicts. Deliberately small: a candidate must be shown to
-# beat the CNN on the VALIDATION split before it is added.
-TARGET = [14, 15]                       # head_top_right, head_top_left
+# CHANNEL indices, not DogFLW indices - see the note in ear_correct.py. Landmarks the
+# shape model predicts, deliberately few: a candidate must beat the CNN on the
+# VALIDATION split before it is added.
+TARGET = [CH_OF[14], CH_OF[15]]         # head_top_right, head_top_left
 # Landmarks it predicts *from*: eye / nose / mouth / muzzle.
-SOURCE = [d for d in range(46) if REGION_OF[d] not in ("ear", "head")]
+SOURCE = [k for k, d in enumerate(ACTIVE) if REGION_OF[d] not in ("ear", "head")]
+TARGET_NAMES = [DOGFLW_NAMES[14], DOGFLW_NAMES[15]]
 
 
 def similarity_frame(points: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -52,8 +54,9 @@ def fit(truth: np.ndarray, out_path: Path = MODEL_PATH, alpha: float = 1e-3) -> 
     """Fit the shape model on ground-truth landmarks from the TRAIN split only.
 
     Args:
-        truth: (N, 46, 2) ground-truth landmarks. Must come from the train split -
-            fitting on val or test would make every downstream number meaningless.
+        truth: (N, len(ACTIVE), 2) ground-truth landmarks in CHANNEL order. Must come
+            from the train split - fitting on val or test would make every downstream
+            number meaningless.
     """
     from sklearn.linear_model import Ridge
 
@@ -70,8 +73,7 @@ def fit(truth: np.ndarray, out_path: Path = MODEL_PATH, alpha: float = 1e-3) -> 
     np.savez(out_path, coef=m.coef_, intercept=m.intercept_,
              source=np.array(SOURCE), target=np.array(TARGET), n_train=len(L))
     print(f"[shape] fitted on {len(L)} training faces -> {out_path}")
-    print(f"[shape]   predicts {[DOGFLW_NAMES[t] for t in TARGET]} "
-          f"from {len(SOURCE)} landmarks")
+    print(f"[shape]   predicts {TARGET_NAMES} from {len(SOURCE)} landmarks")
     return {"coef": m.coef_, "intercept": m.intercept_, "n_train": len(L)}
 
 
@@ -83,7 +85,11 @@ class Refiner:
         self.coef, self.intercept = z["coef"], z["intercept"]
         self.source = [int(v) for v in z["source"]]
         self.target = [int(v) for v in z["target"]]
-        self.names = [DOGFLW_NAMES[d] for d in self.target]
+        self.names = list(TARGET_NAMES)
+        if self.source != SOURCE or self.target != TARGET:
+            raise ValueError(
+                f"{path} was fitted for a different landmark set (target "
+                f"{self.target} vs {TARGET}). Refit with src/postfit.py --fit-shape.")
 
     def apply(self, kpts: np.ndarray, pcut: float = 0.1, min_src: int = 20) -> int:
         """Overwrite the target channels. Returns how many were replaced.

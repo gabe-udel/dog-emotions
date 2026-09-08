@@ -24,15 +24,21 @@ import numpy as np
 import splits as splits_mod
 from cascade import Cascade
 from faceconfig import CascadeConfig, FaceBoxConfig, PostConfig
-from keypoint_scheme import DOGFLW_NAMES, REGION_OF
+from keypoint_scheme import ACTIVE, DOGFLW_NAMES, DROP_EAR_CONTOUR, REGION_OF
 
 # The unified 76-channel model on the same 479 held-out images, shipping config.
-# CLAUDE.md section 12. Every new number is reported against this row.
+# Every new number is reported against this row.
 BASELINE = {
     "all_mean": 0.0438, "all_median": 0.0319, "pck5": 0.710, "pck10": 0.925,
     "eye": 0.0261, "nose": 0.0269, "mouth": 0.0325, "muzzle": 0.0505,
     "ear": 0.0631, "head": 0.0880,
 }
+
+# Baselines measured over all 46 landmarks. Once ACTIVE is a subset, the aggregate rows
+# and the ear row cover different point sets, so the comparison is not like-for-like -
+# dropping the eight hardest ear points lowers a mean without improving any prediction.
+# The report labels those rows rather than quietly printing a flattering percentage.
+COMPARABLE = len(ACTIVE) == 46
 
 
 def face_diagonal(rec: dict) -> float:
@@ -61,7 +67,7 @@ def evaluate(cascade: Cascade, records: list[dict], ids: set[str],
         if res.face is None or not np.isfinite(lm).all():
             continue
         preds.append(res.face)
-        truths.append(lm)
+        truths.append(lm[ACTIVE])       # ground truth in CHANNEL order, not DogFLW order
         diags.append(face_diagonal(rec))
         box_px.append(res.face_box.side if res.face_box else np.nan)
         if (i + 1) % 50 == 0:
@@ -83,12 +89,14 @@ def evaluate(cascade: Cascade, records: list[dict], ids: set[str],
         "by_box_size": _by_box_size(err, np.asarray(box_px)),
     }
     groups = defaultdict(list)
-    for k in range(len(DOGFLW_NAMES)):
-        groups[REGION_OF[k]].append(k)
+    for k, d in enumerate(ACTIVE):
+        groups[REGION_OF[d]].append(k)
     for region, idx in groups.items():
         out["regions"][region] = _stats(err[:, idx].ravel()) | {"n": len(idx)}
-    for k in range(len(DOGFLW_NAMES)):
-        out["per_landmark"][DOGFLW_NAMES[k]] = float(err[:, k].mean())
+    for k, d in enumerate(ACTIVE):
+        out["per_landmark"][DOGFLW_NAMES[d]] = float(err[:, k].mean())
+    out["n_landmarks"] = len(ACTIVE)
+    out["dropped_landmarks"] = [DOGFLW_NAMES[d] for d in DROP_EAR_CONTOUR]
     return out
 
 
@@ -125,8 +133,17 @@ def _by_box_size(err: np.ndarray, box_px: np.ndarray) -> list[dict]:
 
 def report(res: dict, split: str) -> None:
     a = res["all"]
-    print(f"\n{'=' * 74}\nFACE CASCADE - {split} split, {res['n_scored']} images scored")
+    n_lm = res.get("n_landmarks", len(ACTIVE))
+    print(f"\n{'=' * 74}\nFACE CASCADE - {split} split, {res['n_scored']} images, "
+          f"{n_lm} landmarks")
     print("=" * 74)
+    if not COMPARABLE:
+        print(f"NOT LIKE-FOR-LIKE: the baseline covers all 46 landmarks, this model "
+              f"predicts {n_lm}.\nThe {len(DROP_EAR_CONTOUR)} excluded ear-contour "
+              f"points were the hardest on the face, so\naggregate and ear rows are "
+              f"marked (*) - a lower mean there is not an improvement.\nCompare "
+              f"per-landmark instead.\n")
+    star = "" if COMPARABLE else " *"
     print(f"{'metric':16s} {'cascade':>10s} {'baseline':>10s} {'change':>10s}")
     print("-" * 74)
     for label, key, base in (("NME mean", "nme", BASELINE["all_mean"]),
@@ -134,9 +151,8 @@ def report(res: dict, split: str) -> None:
                              ("PCK@5%", "pck5", BASELINE["pck5"]),
                              ("PCK@10%", "pck10", BASELINE["pck10"])):
         v = a[key]
-        better = (v - base) / base
-        arrow = f"{better:+.1%}"
-        print(f"{label:16s} {v:10.4f} {base:10.4f} {arrow:>10s}")
+        chg = f"{(v - base) / base:+.1%}{star}" if COMPARABLE else "     n/a"
+        print(f"{label:16s} {v:10.4f} {base:10.4f} {chg:>10s}")
     print("-" * 74)
     print(f"{'region':16s} {'n':>4s} {'cascade':>10s} {'baseline':>10s} {'change':>10s}"
           f" {'PCK@5%':>8s}")
@@ -145,8 +161,11 @@ def report(res: dict, split: str) -> None:
         if not r:
             continue
         base = BASELINE[region]
+        # every region except ear keeps all its points, so those stay comparable
+        ok = COMPARABLE or region != "ear"
+        chg = f"{(r['nme'] - base) / base:+9.1%}" if ok else "      n/a"
         print(f"{region:16s} {r['n']:4d} {r['nme']:10.4f} {base:10.4f} "
-              f"{(r['nme'] - base) / base:+9.1%} {r['pck5']:8.1%}")
+              f"{chg} {r['pck5']:8.1%}")
 
     b = res["box"]
     print("-" * 74)

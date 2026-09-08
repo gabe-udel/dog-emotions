@@ -14,9 +14,9 @@
   },
   "splits": {
     "train": {
-      "labelled": 150671,
-      "masked": 255,
-      "clipped_images": 74,
+      "labelled": 124516,
+      "masked": 162,
+      "clipped_images": 41,
       "no_landmarks": 2,
       "n": 3281,
       "derived": 3280,
@@ -26,9 +26,9 @@
       "failure_rate": 0.0
     },
     "val": {
-      "labelled": 26367,
-      "masked": 37,
-      "clipped_images": 15,
+      "labelled": 21798,
+      "masked": 14,
+      "clipped_images": 8,
       "n": 574,
       "derived": 574,
       "fallback": 0,
@@ -37,8 +37,8 @@
       "failure_rate": 0.0
     },
     "test": {
-      "labelled": 22021,
-      "masked": 59,
+      "labelled": 18193,
+      "masked": 47,
       "clipped_images": 10,
       "n": 480,
       "derived": 480,

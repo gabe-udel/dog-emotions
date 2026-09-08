@@ -102,10 +102,16 @@ class CropConfig:
 class TrainConfig:
     """Face-model training. Not used at inference; recorded next to the checkpoint."""
 
-    n_keypoints: int = 46
-    """All 46 DogFLW landmarks as independent channels. The old 9-way merge with
-    SuperAnimal channels existed only to avoid duplicate outputs in a shared head and
-    has no meaning in a dedicated face model."""
+    n_keypoints: int = 38
+    """DogFLW landmarks predicted, as independent channels - `keypoint_scheme.ACTIVE`.
+
+    38 of the 46. The eight excluded are ear-contour samples measured to be annotation-
+    indeterminate: their error runs 1.3-1.9x larger ALONG the ear edge than across it,
+    i.e. the model finds the edge and cannot know where along it a human put point five.
+    See keypoint_scheme.DROP_EAR_CONTOUR for the measurement.
+
+    NME over 38 is not comparable to NME over 46 - dropping the hardest points lowers
+    the mean without improving any prediction."""
 
     pos_dist_thresh: int = 8
     """Heatmap target width. SuperAnimal ships 17 for body pose. On the old whole-dog

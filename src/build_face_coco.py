@@ -32,7 +32,7 @@ import splits as splits_mod
 from crop import to_dlc_bbox, transform_for
 from facebox import anchor_indices, derive_face_box, failure_rate
 from faceconfig import CropConfig, FaceBoxConfig
-from keypoint_scheme import DOGFLW_NAMES
+from keypoint_scheme import ACTIVE, ACTIVE_NAMES
 
 # COCO visibility. -1 is DeepLabCut's "mask this channel entirely": its
 # HeatmapGaussianGenerator zeroes the loss weights, so a landmark outside the crop
@@ -63,10 +63,14 @@ def build(records: list[dict], poses: np.ndarray, dog_boxes: np.ndarray,
             continue
 
         t = transform_for(box, (rec["height"], rec["width"]), crop_cfg)
+        # Only the ACTIVE landmarks become channels. Subsetting here rather than
+        # downstream means the COCO file, the model width and keypoint_scheme.ACTIVE
+        # cannot drift apart.
+        lm = lm[ACTIVE]
         finite = np.isfinite(lm).all(axis=1)
         inside = t.inside(lm) & finite
 
-        kp = np.full((len(DOGFLW_NAMES), 3), 0.0)
+        kp = np.full((len(ACTIVE), 3), 0.0)
         kp[:, :2] = np.where(inside[:, None], lm, 0.0)
         kp[:, 2] = np.where(inside, VIS_LABELLED, VIS_MASKED)
         stats["labelled"] += int(inside.sum())
@@ -92,8 +96,7 @@ def build(records: list[dict], poses: np.ndarray, dog_boxes: np.ndarray,
         "images": images,
         "annotations": annotations,
         "categories": [{"id": 1, "name": "dog_face", "supercategory": "animal",
-                        "keypoints": [DOGFLW_NAMES[i] for i in range(len(DOGFLW_NAMES))],
-                        "skeleton": []}],
+                        "keypoints": list(ACTIVE_NAMES), "skeleton": []}],
     }
     stats.update(failure_rate(boxes_seen))
     return coco, dict(stats)
