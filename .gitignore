@@ -62,3 +62,14 @@ outputs/*.mp4
 # Ad-hoc landmark-index overlays. Regenerable exactly from a --seed, and a few random
 # batches would otherwise bury the two figures that are actually tracked.
 outputs/figures/indices/
+
+# Model backups. The checkpoint inside is already covered by *.pt, but the whole tree is
+# excluded so 113 MB is never staged by accident. RESTORE.md and the manifest ARE tracked:
+# the record of what was backed up, and its hashes, are worth keeping in history.
+# Note 'backups/**' plus '!backups/*/', not 'backups/' - git cannot re-include a file whose
+# parent directory is excluded, the same trap noted for videos/ above. The directory has to
+# be un-excluded first or the two negations below silently do nothing.
+backups/**
+!backups/*/
+!backups/*/RESTORE.md
+!backups/*/MANIFEST.sha256
