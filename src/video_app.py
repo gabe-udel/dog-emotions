@@ -183,6 +183,10 @@ class App:
         ttk.Checkbutton(hrow, variable=self.shape_refine,
                         text="Shape model for skull top"
                         ).pack(side="left", padx=(18, 0))
+        self.ransac = tk.BooleanVar(value=False)
+        ttk.Checkbutton(hrow, variable=self.ransac,
+                        text="RANSAC outlier rejection"
+                        ).pack(side="left", padx=(18, 0))
         ttk.Label(opts, foreground="#888", justify="left",
                   text="Both were worth having on the 46-landmark model (ear NME -20.9%, skull\n"
                        "top -37.5%), but a fit does not transfer across landmark sets. If the\n"
@@ -351,12 +355,14 @@ class App:
             tag += "_ear"
         if self.shape_refine.get():
             tag += "_shape"
+        if self.ransac.get():
+            tag += "_ransac"
 
         OUTDIR.mkdir(parents=True, exist_ok=True)
         self.out = OUTDIR / f"{self.video.stem}_{tag}.mp4"
         cmd = [str(PY), str(SCRIPT), "--video", str(self.video), "--out", str(self.out),
                "--config", str(config), "--snapshot", str(weights),
-               "--width", "960", "--smooth", "3", "--max-frames", str(n),
+               "--width", "960", "--max-frames", str(n),
                "--pcut", f"{self.pcut.get():.2f}"]
         mi = self.mode_box.current()
         cmd += DISPLAY_MODES[mi if 0 <= mi < len(DISPLAY_MODES) else 0][1]
@@ -364,6 +370,8 @@ class App:
             cmd.append("--ear-correct")
         if self.shape_refine.get():
             cmd.append("--shape-refine")
+        if self.ransac.get():
+            cmd.append("--ransac")
 
         self.btn_run.configure(state="disabled")
         self.btn_pick.configure(state="disabled")

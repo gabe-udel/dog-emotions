@@ -22,7 +22,8 @@ import superanimal as sa
 from cascade import Cascade, FrameResult, config_beside
 from draw import REGION_COLOR, SA_COLOR, Renderer, banner, legend
 from faceconfig import CascadeConfig, FaceBoxConfig, PostConfig
-from keypoint_scheme import ACTIVE, REGION_OF
+from keypoint_scheme import ACTIVE, ACTIVE_NAMES, REGION_OF
+from temporal import ransac_filter, rolling_median, summarise, window_frames
 
 
 def extract_frames(video: str, scratch: Path, width: int, start: int,
@@ -55,22 +56,6 @@ def extract_frames(video: str, scratch: Path, width: int, start: int,
     return paths, fps
 
 
-def temporal_median(seq: list[np.ndarray | None], k: int) -> list[np.ndarray | None]:
-    """Cosmetic k-frame median over each channel. k=1 leaves the raw output alone."""
-    if k <= 1:
-        return seq
-    out: list[np.ndarray | None] = []
-    half = k // 2
-    for i, cur in enumerate(seq):
-        if cur is None:
-            out.append(None)
-            continue
-        window = [s for s in seq[max(0, i - half):i + half + 1] if s is not None
-                  and s.shape == cur.shape]
-        out.append(np.median(np.stack(window), axis=0) if len(window) > 1 else cur)
-    return out
-
-
 def face_legend_entries() -> list[tuple[str, tuple[int, int, int]]]:
     """Counts come from ACTIVE, so the legend cannot claim points the model no longer
     predicts - the ear row reads 6, not 14."""
@@ -93,8 +78,21 @@ def main() -> None:
     ap.add_argument("--width", type=int, default=960)
     ap.add_argument("--start-frame", type=int, default=0)
     ap.add_argument("--max-frames", type=int, default=150)
-    ap.add_argument("--smooth", type=int, default=3,
-                    help="temporal median window; 1 shows raw per-frame output")
+    ap.add_argument("--smooth-ms", type=float, default=100.0,
+                    help="temporal median window in MILLISECONDS, converted with the "
+                         "clip's own fps. 0 shows raw per-frame output")
+    ap.add_argument("--smooth", type=int, default=None,
+                    help="override --smooth-ms with an explicit frame count")
+    ap.add_argument("--ransac", action="store_true",
+                    help="reject keypoints inconsistent with short-term motion")
+    ap.add_argument("--ransac-ms", type=float, default=230.0,
+                    help="RANSAC fit window in milliseconds")
+    ap.add_argument("--ransac-thresh", type=float, default=0.05,
+                    help="inlier tolerance as a fraction of the face box side")
+    ap.add_argument("--ransac-degree", type=int, default=1, choices=(1, 2),
+                    help="1 = constant velocity, 2 = constant acceleration")
+    ap.add_argument("--ransac-repair", default="model", choices=("model", "drop"),
+                    help="replace an outlier with the fitted value, or zero its score")
     ap.add_argument("--pcut", type=float, default=PostConfig.min_confidence)
     ap.add_argument("--pad", type=float, default=FaceBoxConfig.pad)
     ap.add_argument("--no-lines", action="store_true",
@@ -143,8 +141,30 @@ def main() -> None:
     print(f"face box: derived {rep['derived']}  fallback {rep['fallback']}  "
           f"failed {rep['failed']}  no dog {rep['no_dog']}", flush=True)
 
-    faces = temporal_median([r.face for r in results], a.smooth)
-    bodies = temporal_median([r.body for r in results], a.smooth)
+    faces = [r.face for r in results]
+    bodies = [r.body for r in results]
+
+    if a.ransac:
+        # Scale the tolerance by the face box so the same threshold means the same
+        # thing whether the dog is near or far.
+        side = np.array([r.face_box.side if r.face_box is not None else np.nan
+                         for r in results])
+        win = window_frames(a.ransac_ms, fps, minimum=a.ransac_degree + 2)
+        faces, mask = ransac_filter(
+            faces, window=win, thresh=a.ransac_thresh, degree=a.ransac_degree,
+            conf_min=a.pcut, scale=side, repair=a.ransac_repair)
+        print(f"[ransac] window {win} frames ({a.ransac_ms:.0f} ms at {fps:.1f} fps), "
+              f"tol {a.ransac_thresh:g} x face box, degree {a.ransac_degree}", flush=True)
+        print(f"[ransac] {summarise(mask, ACTIVE_NAMES)}", flush=True)
+
+    # Reject before smoothing: a median over a window that still contains an outlier
+    # spreads its error into the neighbours instead of removing it.
+    k = a.smooth if a.smooth is not None else window_frames(a.smooth_ms, fps)
+    if k > 1:
+        print(f"[smooth] median over {k} frames "
+              f"({k / fps * 1000:.0f} ms at {fps:.1f} fps)", flush=True)
+    faces = rolling_median(faces, k)
+    bodies = rolling_median(bodies, k)
 
     rend = Renderer(cascade.sa_bodyparts)
     first = cv2.imread(paths[0])
