@@ -11,6 +11,8 @@ box derived by the same function training used, so none of that machinery has a 
 from __future__ import annotations
 
 import argparse
+import csv
+import json
 import tempfile
 import time
 from pathlib import Path
@@ -19,9 +21,11 @@ import cv2
 import numpy as np
 
 import superanimal as sa
+from aggregate import aggregate, load_noise_floors, motion_energy
 from cascade import Cascade, FrameResult, config_beside
 from draw import REGION_COLOR, SA_COLOR, Renderer, banner, legend
 from faceconfig import CascadeConfig, FaceBoxConfig, PostConfig
+from features import feature_names, frame_features
 from keypoint_scheme import ACTIVE, ACTIVE_NAMES, REGION_OF
 from temporal import ransac_filter, rolling_median, summarise, window_frames
 
@@ -68,6 +72,98 @@ def face_legend_entries() -> list[tuple[str, tuple[int, int, int]]]:
     return entries + [("body (39)", SA_COLOR)]
 
 
+def clip_features(results: list[FrameResult], bodies: list, faces: list,
+                  sa_names: list[str], fps: float, pcut: float
+                  ) -> tuple[list[dict[str, float]], dict[str, float]]:
+    """Per-frame feature rows, plus the one-row clip summary `aggregate()` produces.
+
+    Called with the keypoints as they are AFTER outlier rejection and BEFORE the
+    rendering median. That ordering is load-bearing, not incidental:
+
+    * `aggregate.oscillation` deliberately reads the RAW series, because smoothing is a
+      low-pass filter and a wag or a pant is exactly the high-frequency content it
+      removes. Outlier rejection is what protects that stage, so RANSAC belongs upstream
+      of here and the median does not.
+    * `aggregate()` then smooths again at its own fps-aware window. Handing it a series
+      that has already been median-filtered low-passes it twice and quietly flattens
+      every rate and oscillation feature - with nothing in the output to say so.
+
+    The rolling median in `main()` exists to stop the drawn skeleton jittering. It is a
+    rendering choice, and rendering choices must not reach the measurements.
+    """
+    rows = [
+        frame_features(bodies[i], faces[i],
+                       r.face_box.side if r.face_box is not None else None,
+                       sa_names, ACTIVE_NAMES, pcut)
+        for i, r in enumerate(results)
+    ]
+
+    # motion_energy wants whole arrays and a scale per frame, so it runs after the
+    # per-frame pass that produced body_L. Frames with no dog stay NaN rather than 0:
+    # a still dog and an undetected dog are different facts.
+    n = len(results)
+    body_arr = np.full((n, len(sa_names), 3), np.nan)
+    face_arr = np.full((n, len(ACTIVE_NAMES), 3), np.nan)
+    for i in range(n):
+        if bodies[i] is not None:
+            body_arr[i] = bodies[i]
+        if faces[i] is not None:
+            face_arr[i] = faces[i]
+    lengths = np.array([r.get("body_L", np.nan) for r in rows], dtype=float)
+    sides = np.array([r.face_box.side if r.face_box is not None else np.nan
+                      for r in results], dtype=float)
+    for i, energy in enumerate(motion_energy(body_arr, face_arr, lengths, sides,
+                                             fps, pcut)):
+        rows[i]["motion_energy"] = float(energy)
+
+    return rows, aggregate(rows, fps, noise_floor=load_noise_floors())
+
+
+def _fmt(v: float | None) -> str:
+    return "-" if v is None or not np.isfinite(v) else f"{v:.3f}"
+
+
+def print_feature_summary(clip: dict[str, float], cols: list[str]) -> None:
+    """Coverage first, because a feature's level is meaningless without it.
+
+    A row at 4% coverage is not a measurement of the dog, it is a measurement of three
+    lucky frames, and printing its level beside a fully-covered one invites the two to
+    be read as equals.
+    """
+    print(f"\n{'=' * 72}\nFEATURES\n{'=' * 72}")
+    print(f"{'feature':<26} {'coverage':>9} {'level':>9} {'spread':>9} {'rate/s':>9}")
+    for c in cols:
+        cov = clip.get(f"{c}__coverage")
+        if cov is None:
+            continue
+        flag = "" if cov > 0.5 else ("   <- unusable" if cov < 0.05 else "   <- sparse")
+        print(f"{c:<26} {cov * 100:8.0f}% {_fmt(clip.get(f'{c}__level')):>9} "
+              f"{_fmt(clip.get(f'{c}__spread')):>9} "
+              f"{_fmt(clip.get(f'{c}__rate')):>9}{flag}")
+    for tag in ("wag", "mouth"):
+        if f"{tag}_rate_hz" in clip:
+            print(f"{tag + '_rate_hz':<26} {'':>9} "
+                  f"{_fmt(clip.get(f'{tag}_rate_hz')):>9}     "
+                  f"amp {_fmt(clip.get(f'{tag}_amp'))}")
+
+
+def write_features(rows: list[dict[str, float]], clip: dict[str, float],
+                   cols: list[str], csv_path: Path, json_path: Path,
+                   video: str, pcut: float) -> None:
+    """Per-frame CSV for inspection, one-row JSON for a classifier to consume."""
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
+    with csv_path.open("w", newline="", encoding="utf-8") as fh:
+        w = csv.DictWriter(fh, fieldnames=["frame"] + cols)
+        w.writeheader()
+        for i, r in enumerate(rows):
+            w.writerow({"frame": i, **{c: r.get(c, "") for c in cols}})
+    json_path.write_text(
+        json.dumps({"video": video, "feature_pcut": pcut, **clip}, indent=2),
+        encoding="utf-8")
+    print(f"wrote {csv_path}  ({len(rows)} frames x {len(cols)} features)")
+    print(f"wrote {json_path}  ({len(clip)} clip-level columns)")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--video", required=True)
@@ -104,6 +200,16 @@ def main() -> None:
     ap.add_argument("--shape-refine", action="store_true",
                     help="quarantined: measure on val before trusting it")
     ap.add_argument("--no-subpixel", action="store_true")
+    ap.add_argument("--features", action="store_true",
+                    help="also compute per-frame features and the clip summary row")
+    ap.add_argument("--features-out", default=None,
+                    help="per-frame CSV; defaults to <out>_features.csv")
+    ap.add_argument("--clip-out", default=None,
+                    help="clip summary JSON; defaults to <out>_clip.json")
+    ap.add_argument("--feature-pcut", type=float, default=None,
+                    help="confidence cut for FEATURES only; defaults to --pcut. Kept "
+                         "separate because --pcut is a display control, and raising it "
+                         "to tidy up a video must not silently change a measurement")
     a = ap.parse_args()
 
     cfg = CascadeConfig(
@@ -157,6 +263,16 @@ def main() -> None:
               f"tol {a.ransac_thresh:g} x face box, degree {a.ransac_degree}", flush=True)
         print(f"[ransac] {summarise(mask, ACTIVE_NAMES)}", flush=True)
 
+    # Features come off the keypoints HERE - after outlier rejection, before the
+    # rendering median. See clip_features() for why that ordering is not negotiable.
+    feat_rows = clip_row = None
+    fpcut = a.pcut if a.feature_pcut is None else a.feature_pcut
+    if a.features:
+        print(f"[features] confidence cut {fpcut:g}"
+              f"{'' if a.feature_pcut is None else ' (--feature-pcut)'}", flush=True)
+        feat_rows, clip_row = clip_features(results, bodies, faces,
+                                            cascade.sa_bodyparts, fps, fpcut)
+
     # Reject before smoothing: a median over a window that still contains an outlier
     # spreads its error into the neighbours instead of removing it.
     k = a.smooth if a.smooth is not None else window_frames(a.smooth_ms, fps)
@@ -190,6 +306,16 @@ def main() -> None:
         print(f"DRAWN: {np.mean(drawn):.1f}/{len(ACTIVE)} face landmarks per frame "
               f"(min {min(drawn)}, max {max(drawn)}) at conf >= {a.pcut}")
     print(f"wrote {a.out}  ({time.time() - t0:.1f}s total)")
+
+    if feat_rows is not None:
+        cols = feature_names(cascade.sa_bodyparts, ACTIVE_NAMES) + ["motion_energy"]
+        stem = Path(a.out).with_suffix("")
+        write_features(
+            feat_rows, clip_row, cols,
+            Path(a.features_out) if a.features_out else Path(f"{stem}_features.csv"),
+            Path(a.clip_out) if a.clip_out else Path(f"{stem}_clip.json"),
+            a.video, fpcut)
+        print_feature_summary(clip_row, cols)
 
 
 if __name__ == "__main__":
