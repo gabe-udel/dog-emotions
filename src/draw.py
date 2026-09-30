@@ -155,3 +155,73 @@ def legend(img, entries, org, scale=0.5, line_h=20):
         cv2.putText(img, label, (x + 16, yy), cv2.FONT_HERSHEY_SIMPLEX, scale,
                     (235, 235, 235), 1, cv2.LINE_AA)
     return img
+
+
+# Feature-name prefix -> colour, so a row in the readout matches the landmarks it was
+# computed from. tail and motion have no facial region, so they get their own.
+FEATURE_COLOR = {
+    "ear":    REGION_COLOR["ear"],
+    "head":   REGION_COLOR["head"],
+    "mouth":  REGION_COLOR["mouth"],
+    "eye":    REGION_COLOR["eye"],
+    "nose":   REGION_COLOR["nose"],
+    "tail":   (140, 210, 120),
+    "motion": (200, 200, 200),
+    "view":   (170, 170, 170),
+}
+MISSING = (110, 110, 120)
+
+
+def feature_color(name: str):
+    return FEATURE_COLOR.get(name.split("_", 1)[0], (210, 210, 210))
+
+
+def feature_panel(img, values, ranges, angular=frozenset(), org=None,
+                  width=330, line_h=27, scale=0.44, title="live features"):
+    """Per-frame feature readout, one row per feature, with a clip-relative bar.
+
+    A NaN is drawn as a dimmed row reading '--', never omitted and never shown as 0.
+    features.py refuses to write 0 for a missing measurement because 0 is a real value
+    there - 0 tuck means the tail is against the hips, i.e. maximum fear. A panel that
+    quietly dropped the row, or drew an empty bar, would hand that rule straight back.
+
+    The bar is scaled to the range this feature actually covered in THIS clip, so it
+    shows movement, not absolute magnitude. Two clips' bars are not comparable.
+
+    Args:
+        values: {feature name: value for this frame}
+        ranges: {feature name: (lo, hi)} over the whole clip
+        angular: names measured in degrees, labelled with a degree sign
+    """
+    h, w = img.shape[:2]
+    x, y = org if org else (w - width - 16, 60)
+    rows = list(values.items())
+    box_h = line_h * len(rows) + 34
+
+    ov = img.copy()
+    cv2.rectangle(ov, (x - 12, y - 26), (x + width, y + box_h - 26), (0, 0, 0), -1)
+    cv2.addWeighted(ov, 0.55, img, 0.45, 0, img)
+    cv2.putText(img, title, (x - 4, y - 8), cv2.FONT_HERSHEY_DUPLEX, 0.46,
+                (235, 235, 235), 1, cv2.LINE_AA)
+
+    for k, (name, val) in enumerate(rows):
+        yy = y + k * line_h + 12
+        ok = val is not None and np.isfinite(val)
+        col = feature_color(name) if ok else MISSING
+        unit = "deg" if name in angular else ""
+        txt = f"{val:.2f}{unit}" if ok else "--"
+
+        cv2.putText(img, name, (x - 4, yy), cv2.FONT_HERSHEY_SIMPLEX, scale,
+                    col if ok else MISSING, 1, cv2.LINE_AA)
+        (tw, _), _ = cv2.getTextSize(txt, cv2.FONT_HERSHEY_SIMPLEX, scale, 1)
+        cv2.putText(img, txt, (x + width - tw - 14, yy), cv2.FONT_HERSHEY_SIMPLEX,
+                    scale, (245, 245, 245) if ok else MISSING, 1, cv2.LINE_AA)
+
+        bx0, bx1, by = x - 4, x + width - 14, yy + 7
+        cv2.line(img, (bx0, by), (bx1, by), (58, 58, 64), 3, cv2.LINE_AA)
+        lo, hi = ranges.get(name, (None, None))
+        if ok and lo is not None and hi is not None and hi > lo:
+            f = min(max((val - lo) / (hi - lo), 0.0), 1.0)
+            cv2.line(img, (bx0, by), (int(bx0 + f * (bx1 - bx0)), by), col, 3,
+                     cv2.LINE_AA)
+    return img

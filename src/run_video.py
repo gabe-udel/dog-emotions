@@ -23,7 +23,9 @@ import numpy as np
 import superanimal as sa
 from aggregate import aggregate, load_noise_floors, motion_energy
 from cascade import Cascade, FrameResult, config_beside
-from draw import REGION_COLOR, SA_COLOR, Renderer, banner, legend
+from draw import (REGION_COLOR, SA_COLOR, Renderer, banner, feature_panel,
+                  legend)
+from features import ANGULAR_FEATURES
 from faceconfig import CascadeConfig, FaceBoxConfig, PostConfig
 from features import feature_names, frame_features
 from keypoint_scheme import ACTIVE, ACTIVE_NAMES, REGION_OF
@@ -70,6 +72,32 @@ def face_legend_entries() -> list[tuple[str, tuple[int, int, int]]]:
                for r in ("ear", "head", "eye", "nose", "muzzle", "mouth")
                if counts.get(r)]
     return entries + [("body (39)", SA_COLOR)]
+
+
+# Default rows for the on-video readout. Ten fits legibly at 960px; the full 25 does
+# not. Chosen to span every region the cascade measures, so a wrong one shows up rather
+# than hiding among its neighbours. Override with --overlay-features.
+OVERLAY_DEFAULT = (
+    "ear_angle_L_eyeframe", "ear_angle_R_eyeframe", "ear_height", "ear_closeness_iod",
+    "tail_height", "tail_lateral", "head_tilt", "head_pitch",
+    "mouth_open_jaw", "motion_energy",
+)
+
+
+def overlay_ranges(rows: list[dict[str, float]], names: list[str]
+                   ) -> dict[str, tuple[float, float]]:
+    """Per-feature (lo, hi) over the clip, for the panel's bars.
+
+    Percentiles rather than min/max: one surviving outlier would otherwise compress
+    every other frame's bar into invisibility, making a steady feature look dead.
+    """
+    out: dict[str, tuple[float, float]] = {}
+    for n in names:
+        v = np.array([r.get(n, np.nan) for r in rows], dtype=float)
+        v = v[np.isfinite(v)]
+        if len(v) >= 3:
+            out[n] = (float(np.percentile(v, 2)), float(np.percentile(v, 98)))
+    return out
 
 
 def clip_features(results: list[FrameResult], bodies: list, faces: list,
@@ -206,6 +234,12 @@ def main() -> None:
                     help="per-frame CSV; defaults to <out>_features.csv")
     ap.add_argument("--clip-out", default=None,
                     help="clip summary JSON; defaults to <out>_clip.json")
+    ap.add_argument("--feature-overlay", action="store_true",
+                    help="draw the live per-frame feature values on the video "
+                         "(implies --features)")
+    ap.add_argument("--overlay-features", default=None,
+                    help="comma-separated feature names for the overlay; "
+                         f"default: {','.join(OVERLAY_DEFAULT)}")
     ap.add_argument("--feature-pcut", type=float, default=None,
                     help="confidence cut for FEATURES only; defaults to --pcut. Kept "
                          "separate because --pcut is a display control, and raising it "
@@ -267,6 +301,8 @@ def main() -> None:
     # rendering median. See clip_features() for why that ordering is not negotiable.
     feat_rows = clip_row = None
     fpcut = a.pcut if a.feature_pcut is None else a.feature_pcut
+    if a.feature_overlay:
+        a.features = True
     if a.features:
         print(f"[features] confidence cut {fpcut:g}"
               f"{'' if a.feature_pcut is None else ' (--feature-pcut)'}", flush=True)
@@ -288,6 +324,18 @@ def main() -> None:
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     vw = cv2.VideoWriter(a.out, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
 
+    ov_names = ov_ranges = None
+    if a.feature_overlay:
+        want = ([s.strip() for s in a.overlay_features.split(",")]
+                if a.overlay_features else list(OVERLAY_DEFAULT))
+        known = set(feat_rows[0])
+        unknown = [n for n in want if n not in known]
+        if unknown:
+            raise SystemExit(f"unknown feature(s) for the overlay: {unknown}\n"
+                             f"available: {sorted(known)}")
+        ov_names = want
+        ov_ranges = overlay_ranges(feat_rows, ov_names)
+
     drawn = []
     for i, p in enumerate(paths):
         img = cv2.imread(p)
@@ -299,6 +347,15 @@ def main() -> None:
                sub=f"39 body + {len(ACTIVE)} face  |  conf >= {a.pcut}")
         if not a.no_legend:
             legend(img, face_legend_entries(), org=(18, h - 170))
+        if ov_names:
+            # The skeleton is drawn from median-smoothed keypoints; these numbers come
+            # from the unsmoothed ones, because that is what was measured. On a 7-frame
+            # window the two agree closely, but the title says which is which rather
+            # than leaving it to be assumed.
+            feature_panel(img, {n: feat_rows[i].get(n) for n in ov_names},
+                          ov_ranges, angular=ANGULAR_FEATURES,
+                          title=f"live features  (frame {i + 1}/{len(paths)}, "
+                                f"pre-smoothing)")
         vw.write(img)
     vw.release()
 
