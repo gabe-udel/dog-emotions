@@ -73,3 +73,14 @@ backups/**
 !backups/*/
 !backups/*/RESTORE.md
 !backups/*/MANIFEST.sha256
+
+# StanfordExtra v12 (20 MB): third-party ground truth with its own terms, and pure input -
+# src/check_body_accuracy.py consumes it and writes outputs/body_accuracy.json, which IS
+# tracked. Download it again rather than redistribute it here.
+data/stanfordextra_v12/
+
+# Scratch from feature-pipeline test runs. Regenerable in one command:
+#   src/run_video.py --video <clip> --snapshot <ckpt> --features
+outputs/featdemo_*
+outputs/featoverlay_*
+outputs/overlay_frame.png

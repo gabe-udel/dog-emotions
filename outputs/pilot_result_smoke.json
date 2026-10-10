@@ -1,0 +1,63 @@
+{
+  "n_rows": 24,
+  "classes": [
+    "negative",
+    "positive"
+  ],
+  "n_features": 11,
+  "features": [
+    "ear_angle_L_eyeframe",
+    "ear_angle_L_basevec",
+    "ear_len_L",
+    "ear_angle_R_eyeframe",
+    "ear_angle_R_basevec",
+    "ear_len_R",
+    "ear_closeness_iod",
+    "ear_height",
+    "mouth_open_jaw",
+    "view_yaw",
+    "view_dir"
+  ],
+  "prep": {
+    "dropped_low_coverage": {
+      "tail_height": 0.042,
+      "tail_tuck": 0.0,
+      "tail_lateral": 0.0,
+      "tail_len": 0.0,
+      "posture": 0.0,
+      "head_height": 0.042,
+      "head_tilt": 0.083,
+      "head_pitch": 0.083
+    },
+    "imputed_cells": 32,
+    "coverage": {
+      "ear_angle_L_eyeframe": 0.875,
+      "ear_angle_L_basevec": 0.833,
+      "ear_len_L": 0.833,
+      "ear_angle_R_eyeframe": 0.875,
+      "ear_angle_R_basevec": 0.792,
+      "ear_len_R": 0.792,
+      "ear_closeness_iod": 0.833,
+      "ear_height": 0.833,
+      "mouth_open_jaw": 1.0,
+      "view_yaw": 1.0,
+      "view_dir": 1.0
+    }
+  },
+  "n_dogs": 5,
+  "chance": 0.5,
+  "unsupervised": {
+    "adjusted_rand": -0.024752475247524754,
+    "cluster_accuracy": 0.5
+  },
+  "supervised": {
+    "accuracy": 0.375,
+    "scheme": "leave-one-dog-out"
+  },
+  "permutation_baseline": {
+    "mean": 0.45833333333333326,
+    "p95": 0.6666666666666666,
+    "p_value": 0.78,
+    "n": 50
+  }
+}

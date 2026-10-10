@@ -1,0 +1,254 @@
+{
+  "videos": [
+    "Happy lab.mov",
+    "videos/sample 1.mp4",
+    "videos/sample 2.mp4",
+    "videos/sample 3.mp4"
+  ],
+  "draws": 40,
+  "n_frames": 480,
+  "pcut": 0.35,
+  "clips": {
+    "Happy lab.mov": {
+      "fps": 59.285004965243296,
+      "face_box_px_median": 230.4,
+      "face_jitter_px_median": 0.5626928928576682,
+      "face_sigma_px_median": 3.7876425076629667,
+      "jitter_to_error_ratio": 6.672679184046553,
+      "body_jitter_px_median": 2.3289592525753666,
+      "body_sigma_px_median_INFERRED": 15.540397925152266
+    },
+    "sample 1.mp4": {
+      "fps": 60.0,
+      "face_box_px_median": 552.825,
+      "face_jitter_px_median": 0.973384764491496,
+      "face_sigma_px_median": 9.088122696609286,
+      "jitter_to_error_ratio": 10.244217672041295,
+      "body_jitter_px_median": 3.3321863687592157,
+      "body_sigma_px_median_INFERRED": 34.13564248537827
+    },
+    "sample 2.mp4": {
+      "fps": 29.97002997002997,
+      "face_box_px_median": 281.55937500000005,
+      "face_jitter_px_median": 1.0288001458554308,
+      "face_sigma_px_median": 4.628672991237056,
+      "jitter_to_error_ratio": 4.017265131299826,
+      "body_jitter_px_median": 2.3713553806842773,
+      "body_sigma_px_median_INFERRED": 9.526363284743173
+    },
+    "sample 3.mp4": {
+      "fps": 50.0,
+      "face_box_px_median": 252.7875,
+      "face_jitter_px_median": 0.7812712689538637,
+      "face_sigma_px_median": 4.155680036483734,
+      "jitter_to_error_ratio": 5.968874199567068,
+      "body_jitter_px_median": 1.257286140168485,
+      "body_sigma_px_median_INFERRED": 7.504582803524935
+    }
+  },
+  "features": {
+    "ear_angle_L_eyeframe": {
+      "coverage": 0.9145833333333333,
+      "observed_sd": 6.105512083086424,
+      "noise_sd": 6.985026763960966,
+      "snr": 0.0,
+      "implausible": false
+    },
+    "ear_angle_L_basevec": {
+      "coverage": 0.90625,
+      "observed_sd": 7.292075083996873,
+      "noise_sd": 11.50105770989071,
+      "snr": 0.0,
+      "implausible": false
+    },
+    "ear_len_L": {
+      "coverage": 0.9645833333333333,
+      "observed_sd": 0.02237178793615952,
+      "noise_sd": 0.044654883872934856,
+      "snr": 0.0,
+      "implausible": false
+    },
+    "ear_angle_R_eyeframe": {
+      "coverage": 0.7125,
+      "observed_sd": 6.864374258167203,
+      "noise_sd": 6.987784030644395,
+      "snr": 0.0,
+      "implausible": false
+    },
+    "ear_angle_R_basevec": {
+      "coverage": 0.6625,
+      "observed_sd": 15.327908444604347,
+      "noise_sd": 12.38389332298082,
+      "snr": 0.531973986125273,
+      "implausible": false
+    },
+    "ear_len_R": {
+      "coverage": 0.6625,
+      "observed_sd": 0.0138839771258078,
+      "noise_sd": 0.04661208370810993,
+      "snr": 0.0,
+      "implausible": false
+    },
+    "ear_closeness_iod": {
+      "coverage": 0.7083333333333334,
+      "observed_sd": 0.23906351270168172,
+      "noise_sd": 0.3339585516200011,
+      "snr": 0.0,
+      "implausible": false
+    },
+    "ear_closeness_basesep": {
+      "coverage": 0.65625,
+      "observed_sd": 0.21722695174539605,
+      "noise_sd": 0.6049740239571654,
+      "snr": 0.0,
+      "implausible": false
+    },
+    "ear_height": {
+      "coverage": 0.7083333333333334,
+      "observed_sd": 0.04168242929441511,
+      "noise_sd": 0.026815403782771835,
+      "snr": 1.4162249386717563,
+      "implausible": false
+    },
+    "tail_height": {
+      "coverage": 0.73125,
+      "observed_sd": 40.25191546449719,
+      "noise_sd": 13.801014964169894,
+      "snr": 7.5065028199968955,
+      "implausible": false
+    },
+    "tail_tuck": {
+      "coverage": 0.4583333333333333,
+      "observed_sd": 0.08973139082195843,
+      "noise_sd": 0.05464847193914296,
+      "snr": 1.696079864079828,
+      "implausible": false
+    },
+    "tail_lateral": {
+      "coverage": 0.6833333333333333,
+      "observed_sd": 0.07224998789322395,
+      "noise_sd": 0.09679077271180195,
+      "snr": 0.0,
+      "implausible": false
+    },
+    "tail_len": {
+      "coverage": 0.6833333333333333,
+      "observed_sd": 0.084830965642193,
+      "noise_sd": 0.0913356574949791,
+      "snr": 0.0,
+      "implausible": false
+    },
+    "tail_conf": {
+      "coverage": 1.0,
+      "observed_sd": 0.09466529800882885,
+      "noise_sd": 0.0,
+      "snr": NaN,
+      "implausible": false
+    },
+    "posture": {
+      "coverage": 0.4354166666666667,
+      "observed_sd": 0.07581593946854229,
+      "noise_sd": 0.13687733288252232,
+      "snr": 0.0,
+      "implausible": false
+    },
+    "head_height": {
+      "coverage": 0.6666666666666666,
+      "observed_sd": 0.24817006721938728,
+      "noise_sd": 0.1468661424248725,
+      "snr": 1.8553241655092476,
+      "implausible": false
+    },
+    "head_tilt": {
+      "coverage": 0.6375,
+      "observed_sd": 18.635974102697904,
+      "noise_sd": 7.038646091860732,
+      "snr": 6.010127844136582,
+      "implausible": false
+    },
+    "head_tilt_used_ground": {
+      "coverage": 1.0,
+      "observed_sd": 0.3035521565396786,
+      "noise_sd": 0.0,
+      "snr": NaN,
+      "implausible": false
+    },
+    "head_pitch": {
+      "coverage": 0.6833333333333333,
+      "observed_sd": 21.318524626651907,
+      "noise_sd": 5.003747871743479,
+      "snr": 17.151957008692364,
+      "implausible": false
+    },
+    "eyelid_open": {
+      "coverage": 0.9791666666666666,
+      "observed_sd": 0.0013924302549192268,
+      "noise_sd": 0.009150864006708372,
+      "snr": 0.0,
+      "implausible": false
+    },
+    "mouth_open_lips": {
+      "coverage": 0.3625,
+      "observed_sd": 0.012189375373465827,
+      "noise_sd": 0.02092302697813366,
+      "snr": 0.0,
+      "implausible": false
+    },
+    "mouth_open_jaw": {
+      "coverage": 0.7416666666666667,
+      "observed_sd": 0.014987822989626172,
+      "noise_sd": 0.01529728892090658,
+      "snr": 0.0,
+      "implausible": false
+    },
+    "lip_raise_upperlip": {
+      "coverage": 0.36666666666666664,
+      "observed_sd": 0.004489034459440626,
+      "noise_sd": 0.012367246088099935,
+      "snr": 0.0,
+      "implausible": false
+    },
+    "lip_raise_philtrum": {
+      "coverage": 0.9875,
+      "observed_sd": 0.004863792305237464,
+      "noise_sd": 0.010902129955980175,
+      "snr": 0.0,
+      "implausible": false
+    },
+    "view_yaw": {
+      "coverage": 0.9208333333333333,
+      "observed_sd": 0.015537998220194842,
+      "noise_sd": 0.011141994191069027,
+      "snr": 0.9447522352442913,
+      "implausible": false
+    },
+    "view_dir": {
+      "coverage": 0.9208333333333333,
+      "observed_sd": 0.024327968890886703,
+      "noise_sd": 0.04695467125944285,
+      "snr": 0.0,
+      "implausible": false
+    },
+    "face_px": {
+      "coverage": 1.0,
+      "observed_sd": 24.914528616529758,
+      "noise_sd": 0.0,
+      "snr": NaN,
+      "implausible": false
+    },
+    "body_L": {
+      "coverage": 0.7145833333333333,
+      "observed_sd": 23.000714446818428,
+      "noise_sd": 12.283854934491874,
+      "snr": 2.506011162413123,
+      "implausible": false
+    },
+    "n_paws": {
+      "coverage": 1.0,
+      "observed_sd": 0.19680609464365909,
+      "noise_sd": 0.0,
+      "snr": NaN,
+      "implausible": false
+    }
+  }
+}

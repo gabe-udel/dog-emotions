@@ -1,0 +1,159 @@
+{
+  "split": "val",
+  "n_images": 574,
+  "features": {
+    "ear_angle_L_eyeframe": {
+      "n": 444,
+      "error_sd": 12.929476124015247,
+      "bias": 0.15674103077229287,
+      "true_sd": 49.40976621013234,
+      "observed_sd_video": 6.105512083086424,
+      "snr_within_clip": 0.0,
+      "snr_across_dogs": 13.60372818335037
+    },
+    "ear_angle_L_basevec": {
+      "n": 384,
+      "error_sd": 13.009445959057825,
+      "bias": 0.7713015516474124,
+      "true_sd": 68.94095203966445,
+      "observed_sd_video": 7.292075083996873,
+      "snr_within_clip": 0.0,
+      "snr_across_dogs": 27.082576472649542
+    },
+    "ear_len_L": {
+      "n": 389,
+      "error_sd": 0.04004973964745293,
+      "bias": -0.0025532601191896992,
+      "true_sd": 0.11965448755764782,
+      "observed_sd_video": 0.02237178793615952,
+      "snr_within_clip": 0.0,
+      "snr_across_dogs": 7.926035051533103
+    },
+    "ear_angle_R_eyeframe": {
+      "n": 441,
+      "error_sd": 11.439543457548861,
+      "bias": -0.8362429114826967,
+      "true_sd": 50.45360846234274,
+      "observed_sd_video": 6.864374258167203,
+      "snr_within_clip": 0.0,
+      "snr_across_dogs": 18.452126278507215
+    },
+    "ear_angle_R_basevec": {
+      "n": 340,
+      "error_sd": 15.626469373623165,
+      "bias": -1.3299034344325023,
+      "true_sd": 76.98835266632638,
+      "observed_sd_video": 15.327908444604347,
+      "snr_within_clip": 0.0,
+      "snr_across_dogs": 23.27327207654578
+    },
+    "ear_len_R": {
+      "n": 342,
+      "error_sd": 0.03846424893275329,
+      "bias": -0.002437955715018669,
+      "true_sd": 0.12151706253902289,
+      "observed_sd_video": 0.0138839771258078,
+      "snr_within_clip": 0.0,
+      "snr_across_dogs": 8.980677254799845
+    },
+    "ear_closeness_iod": {
+      "n": 383,
+      "error_sd": 0.2386517157441689,
+      "bias": -0.012709972174253042,
+      "true_sd": 0.5622964132242145,
+      "observed_sd_video": 0.23906351270168172,
+      "snr_within_clip": 0.003454006077476322,
+      "snr_across_dogs": 4.551387005509277
+    },
+    "ear_closeness_basesep": {
+      "n": 287,
+      "error_sd": 0.7063083792617351,
+      "bias": -0.12561204009768132,
+      "true_sd": 1.0040789678586697,
+      "observed_sd_video": 0.21722695174539605,
+      "snr_within_clip": 0.0,
+      "snr_across_dogs": 1.0209102342164675
+    },
+    "ear_height": {
+      "n": 383,
+      "error_sd": 0.036195523943714204,
+      "bias": 0.0014427751337672213,
+      "true_sd": 0.2581507029433936,
+      "observed_sd_video": 0.04168242929441511,
+      "snr_within_clip": 0.3261611746370974,
+      "snr_across_dogs": 49.867089473326395
+    },
+    "eyelid_open": {
+      "n": 572,
+      "error_sd": 0.011390332427155087,
+      "bias": -0.003945659456113948,
+      "true_sd": 0.011564267781925206,
+      "observed_sd_video": 0.0013924302549192268,
+      "snr_within_clip": 0.0,
+      "snr_across_dogs": 0.030774060430178427
+    },
+    "eye_width": {
+      "n": 568,
+      "error_sd": 0.01220862382261788,
+      "bias": -0.009566326965811944,
+      "true_sd": 0.012517560852729254,
+      "observed_sd_video": null,
+      "snr_within_clip": NaN,
+      "snr_across_dogs": 0.05124997422299578
+    },
+    "mouth_open_lips": {
+      "n": 420,
+      "error_sd": 0.02689861592380018,
+      "bias": -0.00047332140108108286,
+      "true_sd": 0.047526156561579685,
+      "observed_sd_video": 0.012189375373465827,
+      "snr_within_clip": 0.0,
+      "snr_across_dogs": 2.1218031968906406
+    },
+    "mouth_open_jaw": {
+      "n": 539,
+      "error_sd": 0.020094623078092882,
+      "bias": -0.002125875629682274,
+      "true_sd": 0.043843375017411444,
+      "observed_sd_video": 0.014987822989626172,
+      "snr_within_clip": 0.0,
+      "snr_across_dogs": 3.7604524091893805
+    },
+    "lip_raise_upperlip": {
+      "n": 436,
+      "error_sd": 0.012718466208647219,
+      "bias": -0.008750412606978423,
+      "true_sd": 0.012681877782361926,
+      "observed_sd_video": 0.004489034459440626,
+      "snr_within_clip": 0.0,
+      "snr_across_dogs": 0.0
+    },
+    "lip_raise_philtrum": {
+      "n": 566,
+      "error_sd": 0.010351900258308873,
+      "bias": 0.0036390895858038983,
+      "true_sd": 0.013438611913948871,
+      "observed_sd_video": 0.004863792305237464,
+      "snr_within_clip": 0.0,
+      "snr_across_dogs": 0.685266807007216
+    },
+    "view_yaw": {
+      "n": 553,
+      "error_sd": 0.00961239113495182,
+      "bias": 0.0014277487957579699,
+      "true_sd": 0.044442031641051066,
+      "observed_sd_video": 0.015537998220194842,
+      "snr_within_clip": 1.6129269379284985,
+      "snr_across_dogs": 20.375926130641208
+    },
+    "view_dir": {
+      "n": 553,
+      "error_sd": 0.04317995044480523,
+      "bias": -0.0031733448943811592,
+      "true_sd": 0.15535663435186461,
+      "observed_sd_video": 0.024327968890886703,
+      "snr_within_clip": 0.0,
+      "snr_across_dogs": 11.944799528014958
+    }
+  }
+}
