@@ -1,10 +1,12 @@
 # CLAUDE.md — handoff notes
 
-Project state as of **2026-10-09**.
+Project state as of **2026-10-11**.
 
 The pipeline is a **two-stage cascade**: stock SuperAnimal-Quadruped for the body, a
 dedicated DogFLW model for the face. On top of it sits a **feature layer** that turns
-keypoints into geometry, and a **classification pilot** that is blocked on labelled data.
+keypoints into geometry, a **classification pilot** that is blocked on labelled data,
+and **Pupchat** — a prototype that hands the measurements plus the video to a language
+model and gets an owner-facing answer back (§15).
 
 | layer | state |
 |---|---|
@@ -12,6 +14,7 @@ keypoints into geometry, and a **classification pilot** that is blocked on label
 | Face landmarks (38) | `face38`, trained. **Validated only — never scored on test** |
 | Features (20 live) | implemented, tested, error measured against ground truth |
 | Classification | pilot only, 24 labelled rows, no trained model exists |
+| Pupchat prototype | end to end and tested; the measurement half verified on real video |
 
 Model in use: `face_project/face38/snapshot-best-008.pt`.
 Its predecessor `face1` (46 landmarks) is backed up under `backups/face1-46kp-2026-09-03/`.
@@ -520,3 +523,81 @@ DogFLW is **CC BY-NC 4.0 — non-commercial**, and that restriction propagates t
 trained on it. StanfordExtra v12 carries its own terms and is **not** committed to this
 repo. Mixkit clip 1476 is Mixkit Free License; `dog_walk_sf.ogv` is CC BY-SA 3.0.
 SuperAnimal weights follow the DeepLabCut Model Zoo terms.
+
+---
+
+## 15. Pupchat: the prototype on top
+
+`video + question -> keypoints -> features -> evidence -> provider -> answer`.
+Full documentation in [docs/PUPCHAT_PROTOTYPE.md](docs/PUPCHAT_PROTOTYPE.md).
+
+A layer, not a change: it imports `run_video.clip_features` rather than recomputing
+anything, so Pupchat's numbers and the research pipeline's numbers come from one
+function. No model, training or evaluation code was touched.
+
+```powershell
+.venv\Scripts\python.exe -m pupchat ask --video "<file>" --question "<text>"
+.venv\Scripts\python.exe -m pupchat evidence --video "<file>"     # no key needed
+.venv\Scripts\python.exe -m pupchat.web                            # gradio page
+```
+
+### Two providers, one prompt
+
+The only real difference is what media each can accept. OpenAI has **no video input** —
+checked against [the vision guide](https://developers.openai.com/api/docs/guides/images-vision),
+which documents exactly `input_text` and `input_image` and no `video` type — so frames
+are sampled client-side at **2 fps under 15 s**, 1 fps above, capped at 32. Gemini takes
+the file whole ([docs](https://ai.google.dev/gemini-api/docs/video-understanding)):
+inline under 100 MB, Files API above.
+
+The system prompt and the evidence text are byte-identical across providers, and a test
+asserts it. Otherwise a comparison between them measures two prompts rather than two
+models. `PUPCHAT_PROVIDER` in `.env` selects; `--provider` overrides for one run.
+
+### The evidence summary, and what it refuses to say
+
+Two tiers, derived from the measurement files rather than hard-coded:
+
+* **Timestamped moments** only where within-clip SNR >= 1 — `head_pitch`, `tail_height`,
+  `head_tilt`, `head_height`, `tail_tuck`, `view_yaw`. An excursion registers when the
+  series leaves its clip baseline by more than 2x the feature's **own measured error**.
+* **Clip-level descriptions, no timing**, for everything that separates dogs but not
+  moments.
+
+Where `feature_error.json` and `feature_snr.json` disagree, ground truth wins — the same
+rule `aggregate.load_noise_floors` uses. That promotes `view_yaw` (1.61 vs 0.94) and
+demotes `ear_height` (0.33 vs 1.42), and reproduces the six above without naming them.
+
+Three refusals are load-bearing:
+
+* **No emotion words.** `config.BANNED_WORDS` covers affect and also interpretation
+  wearing body-language clothes — `relaxed`, `alert`, `submissive`. The model does the
+  interpreting; handing it a conclusion dressed as a measurement makes the loop circular.
+* **Unavailable features are always listed with a reason, and never trimmed.** The first
+  version dropped bullets off the end when over budget, which on a real clip silently
+  removed 8 of 10 unavailable entries — including the wag rate. Long lists are grouped
+  by reason now, and tests assert every entry survives a tight budget. A reader cannot
+  tell a trimmed entry from one that never existed, which makes that the single most
+  dangerous truncation order available.
+* **Wag rate is reported as unavailable whenever the oscillation gate refuses**, which
+  on real footage is almost always (§10). That is not evidence the dog did not wag, and
+  the system prompt says so explicitly.
+
+### Verified on real video
+
+`videos/whie pom sample 15.mp4`, 7.5 s: 94 keypoint frames at 12.5 fps (strided from
+25), 16 vision frames at 2 fps, 10 features reported unavailable with reasons, three
+timestamped `view_yaw` moments. Both providers' requests inspected via `--dry-run`:
+question last in each, no key in either payload.
+
+**Not yet run against a live API** — no key was available in the build environment. The
+measurement half, request assembly and both providers' wire formats are verified; the
+round trip is one command away once a key is in `.env`.
+
+### Footgun carried over
+
+`pipeline.sample_frames` strides the video down to ~10 fps and hands the **strided** rate
+to `aggregate()`. Passing the source rate instead would scale every per-second
+derivative and the oscillation rate by the stride factor, silently. The vision pass has
+its own, much sparser rate; conflating the two would either blow the token budget or
+starve the temporal features.

@@ -1,0 +1,181 @@
+# Pupchat prototype
+
+`video + question -> keypoints -> features -> evidence -> AI provider -> answer`
+
+A layer on top of the measurement pipeline. It changes no model, training or evaluation
+code; it reads what that pipeline produces, describes it in plain English, and hands the
+description to a model along with the video.
+
+> **Prototype only.** DogFLW is CC BY-NC 4.0 and the SuperAnimal weights follow the
+> DeepLabCut Model Zoo terms, so this must not be deployed publicly or used
+> commercially. It is educational guidance, not a vet and not a certified behaviourist.
+
+---
+
+## 1. Set a key
+
+```powershell
+copy .env.example .env
+notepad .env
+```
+
+```ini
+PUPCHAT_PROVIDER=openai      # or: gemini
+OPENAI_API_KEY=sk-...
+GEMINI_API_KEY=...
+```
+
+`.env` is gitignored; `.env.example` is the tracked template. No key ever appears in
+code, in a request payload, or in the usage log.
+
+Install the SDKs if they are not already present:
+
+```powershell
+.venv\Scripts\python.exe -m pip install openai google-genai python-dotenv gradio
+```
+
+---
+
+## 2. The command line
+
+```powershell
+.venv\Scripts\python.exe -m pupchat ask `
+    --video "videos\whie pom sample 15.mp4" `
+    --question "My pom keeps doing this when guests arrive. What is he telling me?"
+```
+
+It prints the answer and then stays open for follow-up questions. Follow-ups do **not**
+re-run the keypoint model and do **not** re-upload the video.
+
+| flag | effect |
+|---|---|
+| `--provider openai\|gemini` | overrides `PUPCHAT_PROVIDER` for one run |
+| `--model <name>` | overrides the configured model |
+| `--show-evidence` | print the evidence text sent to the model |
+| `--show-request` | print the full request before sending, media shortened |
+| `--dry-run` | build and print the request, send nothing, **no key needed** |
+| `--no-follow-up` | answer once and exit |
+
+Measurements only, no key required:
+
+```powershell
+.venv\Scripts\python.exe -m pupchat evidence --video "videos\sample 13.mp4" --json
+```
+
+---
+
+## 3. The web page
+
+```powershell
+.venv\Scripts\python.exe -m pupchat.web
+```
+
+Opens a local Gradio page: upload a video, ask, keep chatting. There is a
+**Show the measurements** button so the evidence can be read directly.
+
+**The first question on a new video takes minutes.** The keypoint pass runs on CPU at
+roughly 1.2 seconds per frame. Every later question on the same video is fast, because
+measurements are cached by the video's SHA-256.
+
+---
+
+## 4. The two providers
+
+The only real difference is what media they can take. The system prompt and the evidence
+text are byte-identical either way — a test asserts that, because otherwise comparing
+the two would compare two prompts rather than two models.
+
+| | OpenAI | Gemini |
+|---|---|---|
+| media | sampled frames, base64 | the video file itself |
+| why | the API has no video input ([docs](https://developers.openai.com/api/docs/guides/images-vision): only `input_text` and `input_image`) | native video ([docs](https://ai.google.dev/gemini-api/docs/video-understanding)) |
+| sampling | **2 fps under 15 s**, 1 fps above, capped at 32 frames | server-side, Google's choice |
+| large files | n/a | Files API above 100 MB, inline below |
+| default model | `gpt-6.1-sol` | `gemini-3.8-flash` |
+
+Adding a third provider means one subclass of `pupchat.providers.base.Provider` and one
+line in the registry. Nothing else in Pupchat branches on provider name.
+
+---
+
+## 5. The evidence summary
+
+Two tiers, decided by measured reliability rather than by a hard-coded list:
+
+- **Timestamped moments** only for features whose within-clip SNR is at least 1 —
+  currently `head_pitch`, `tail_height`, `head_tilt`, `head_height`, `tail_tuck`,
+  `view_yaw`. An excursion counts when the series leaves its clip baseline by more than
+  2x the feature's **own measured error**.
+- **Clip-level descriptions**, with no timing at all, for features that separate dogs
+  but not moments.
+
+Where `outputs/feature_error.json` and `outputs/feature_snr.json` disagree, ground truth
+wins — the same rule `aggregate.load_noise_floors` already uses. That promotes
+`view_yaw` (1.61 by ground truth, 0.94 by the noise model) and demotes `ear_height`
+(0.33 against 1.42), and it reproduces the six above without naming any of them.
+
+Also enforced:
+
+- **Coverage** is stated for every feature. Below 40% (configurable) it is reported as
+  unavailable instead.
+- **Unavailable features are always listed, with a reason** — and are never dropped to
+  save words. An earlier version trimmed bullets off the end when it ran over budget and
+  silently removed 8 of 10 unavailable entries on a real clip. Long lists are now
+  grouped by reason instead, and tests assert every entry survives a tight budget.
+- **Tail wag rate is listed as unavailable whenever the oscillation gate refuses it.**
+  That is not the same as "the dog did not wag", and the system prompt says so.
+- **No emotion words.** `config.BANNED_WORDS` covers affect terms and also
+  interpretation wearing body-language clothes — `relaxed`, `alert`, `submissive`. A
+  test checks real output against the list.
+
+---
+
+## 6. Caching and cost
+
+| what | where |
+|---|---|
+| keypoints, features, evidence | `outputs/pupchat/<hash>/` |
+| sampled frames (OpenAI) | `outputs/pupchat/<hash>/vision_frames.json` |
+| token usage and estimated cost | `outputs/pupchat/usage.jsonl` |
+
+Keyed by SHA-256 of the file, so the same clip under two names is processed once. Bump
+`pipeline.CACHE_VERSION` when anything upstream changes meaning.
+
+The usage log is one JSON object per line: provider, model, tokens, cached tokens,
+estimated USD, seconds, and whether it was a follow-up. Prices live in
+`config.PRICING`; an unpriced model logs `null` rather than `0`, so a missing price
+cannot quietly understate a bill.
+
+---
+
+## 7. Tests
+
+```powershell
+.venv\Scripts\python.exe -m pytest tests\test_pupchat_evidence.py tests\test_pupchat_client.py -q
+```
+
+61 tests. Every API call is mocked: **no test needs a key, opens a socket, or spends
+money.** They cover the tier rule, the no-false-timestamp guarantee, low-coverage
+reporting, the wag gate, the banned-word list, the trimming regression, both providers'
+request shapes, media handling, usage normalisation and cost.
+
+---
+
+## 8. Layout
+
+```
+pupchat/
+  config.py              every tunable; provider settings; banned words; prices
+  reliability.py         merges the two measurement files, ground truth wins
+  evidence.py            build_evidence / evidence_to_text / detect_events
+  pipeline.py            video -> keypoints -> features -> evidence, cached
+  client.py              provider-agnostic: media prep, send, accounting
+  providers/
+    base.py              Provider ABC; MEDIA_FRAMES vs MEDIA_VIDEO
+    openai_provider.py   frames
+    gemini_provider.py   native video
+  prompts/system.md      the system prompt, editable
+  cli.py / __main__.py   python -m pupchat
+  web.py                 gradio page
+  _src.py                bridge to src/, heavy imports kept lazy
+```

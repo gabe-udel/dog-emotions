@@ -84,3 +84,12 @@ data/stanfordextra_v12/
 outputs/featdemo_*
 outputs/featoverlay_*
 outputs/overlay_frame.png
+
+# API keys. .env.example is the tracked template; .env itself never is.
+.env
+.env.*
+!.env.example
+
+# Pupchat per-video caches: keypoint rows, evidence, and base64 frames keyed by
+# video hash. Regenerated on demand and potentially large.
+outputs/pupchat/
