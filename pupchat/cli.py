@@ -101,6 +101,39 @@ def cmd_evidence(a: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_trace(a: argparse.Namespace) -> int:
+    """Why each feature came out the way it did. Reads the cache, computes nothing."""
+    from .pipeline import analyse
+    from .trace import (frame_trace, keypoint_coverage, load_keypoints,
+                        render_coverage, render_frame)
+
+    cfg = Config()
+    res = analyse(a.video, cfg, progress=print if a.verbose else (lambda *x, **k: None))
+    kp_path = res.get("keypoints")
+    if kp_path is None or not Path(kp_path).exists():
+        print("This video was measured before keypoint caching existed.")
+        print("Re-run with --force to regenerate:")
+        print(f'  python -m pupchat evidence --video "{a.video}" --force')
+        return 1
+
+    kp = load_keypoints(kp_path)
+    pcut = cfg.keypoint.pcut
+    print(render_coverage(keypoint_coverage(kp, pcut), pcut))
+
+    n = len(res["frames"])
+    if a.time is not None:
+        idx = int(round(a.time * float(res["meta"]["keypoint_fps"])))
+    else:
+        idx = a.frame if a.frame is not None else n // 2
+    idx = max(0, min(n - 1, idx))
+
+    print()
+    print("=" * 56)
+    print(render_frame(frame_trace(kp, res["frames"], idx, pcut), pcut,
+                       only_failed=a.failed_only))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     _utf8_stdout()
     load_env()
@@ -126,6 +159,14 @@ def main(argv: list[str] | None = None) -> int:
     ev.add_argument("--json", action="store_true")
     ev.add_argument("--force", action="store_true", help="ignore the cache")
     ev.set_defaults(func=cmd_evidence)
+
+    tr = sub.add_parser("trace", help="show why each feature succeeded or failed")
+    tr.add_argument("--video", required=True)
+    tr.add_argument("--frame", type=int, default=None, help="frame index (default: mid)")
+    tr.add_argument("--time", type=float, default=None, help="seconds; overrides --frame")
+    tr.add_argument("--failed-only", action="store_true")
+    tr.add_argument("--verbose", action="store_true")
+    tr.set_defaults(func=cmd_trace)
 
     a = ap.parse_args(argv)
     if not Path(a.video).exists():

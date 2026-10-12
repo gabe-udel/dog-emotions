@@ -202,7 +202,43 @@ pupchat/
 
 ---
 
-## 9. Verified live
+## 9. Seeing how a feature was calculated
+
+`pupchat trace` joins the raw keypoint confidences to the feature values for the same
+frame, so a NaN stops being a dead end. It reads the cache and recomputes nothing.
+
+```powershell
+.venv\Scripts\python.exe -m pupchat trace --video "<file>"               # mid frame
+.venv\Scripts\python.exe -m pupchat trace --video "<file>" --time 3.2    # at 3.2s
+.venv\Scripts\python.exe -m pupchat trace --video "<file>" --failed-only
+```
+
+It prints two tables. First, keypoint reliability across the clip, weakest first - this
+is what a coverage number actually means, because **a feature is NaN unless every
+keypoint it needs clears the cut, so the weakest keypoint caps every feature touching
+it**. Then one frame in detail: which keypoints fell below the cut, which features
+could not be computed, and the values of those that could.
+
+Everything else the cache exposes, for scripting:
+
+| file | contents |
+|---|---|
+| `frames.json` | every feature, every frame |
+| `clip.json` | the aggregated clip row, with `__coverage` / `__level` / `__rate` |
+| `evidence.json` | tiers, events, unavailable reasons |
+| `keypoints.npz` | raw body/face arrays with names - what `trace` reads |
+
+And to watch the numbers move against the video, the research pipeline already draws
+them on the frames:
+
+```powershell
+.venv\Scripts\python.exe srcun_video.py --video "<file>" `
+    --snapshot face_projectace38\snapshot-best-008.pt --ransac --feature-overlay
+```
+
+---
+
+## 10. Verified live
 
 **Gemini, 2026-10-11**, `videos/whie pom sample 15.mp4` (7.5 s), `gemini-3.8-flash`:
 

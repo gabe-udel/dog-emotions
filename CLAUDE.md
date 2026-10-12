@@ -608,6 +608,17 @@ Same cause truncated the first answer mid-word: at `max_output_tokens=900`, thin
 682 before the answer started. Default is now 3000, and truncation is surfaced rather
 than returned as though it were a complete answer.
 
+### Seeing a feature's working
+
+`pupchat trace --video <file> [--time N] [--failed-only]` joins keypoint confidences to
+feature values for one frame, from the cache, recomputing nothing. A NaN feature stops
+being a dead end: the trace names the keypoint that fell below the cut. It also prints
+clip-wide keypoint reliability, weakest first, which is what a coverage figure means -
+a feature is NaN unless EVERY keypoint it needs clears the cut.
+
+`pipeline.py` caches `keypoints.npz` for this (CACHE_VERSION 4); older caches need
+`--force`.
+
 ### Footgun carried over
 
 `pipeline.sample_frames` strides the video down to ~10 fps and hands the **strided** rate

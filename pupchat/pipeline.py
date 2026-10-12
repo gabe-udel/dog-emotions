@@ -26,7 +26,7 @@ from .config import OUT_DIR, Config
 from .evidence import build_evidence, evidence_to_text
 from .reliability import load_reliability
 
-CACHE_VERSION = 3
+CACHE_VERSION = 4
 """Bump when anything upstream of the cached rows changes meaning, so a stale cache is
 replaced rather than silently reused."""
 
@@ -110,6 +110,7 @@ def analyse(video: str | Path, cfg: Config | None = None, *,
                 "frames": json.loads((out / "frames.json").read_text()),
                 "clip": json.loads((out / "clip.json").read_text()),
                 "evidence": json.loads((out / "evidence.json").read_text()),
+                "keypoints": out / "keypoints.npz",
                 "evidence_text": (out / "evidence.txt").read_text(encoding="utf-8"),
                 "cached": True,
             }
@@ -183,6 +184,18 @@ def analyse(video: str | Path, cfg: Config | None = None, *,
     }
 
     out.mkdir(parents=True, exist_ok=True)
+    # Raw keypoints too. Without them a NaN feature is a dead end: you can see THAT
+    # it failed but not WHICH keypoint fell below the confidence cut, which is the
+    # first thing anyone refining a feature needs to know.
+    np.savez_compressed(
+        out / "keypoints.npz",
+        body=np.stack([b if b is not None else np.full((len(cascade.sa_bodyparts), 3),
+                                                       np.nan) for b in bodies]),
+        face=np.stack([f if f is not None else np.full((len(V["ACTIVE_NAMES"]), 3),
+                                                       np.nan) for f in faces]),
+        sa_names=np.array(cascade.sa_bodyparts, dtype=object),
+        face_names=np.array(V["ACTIVE_NAMES"], dtype=object),
+    )
     (out / "frames.json").write_text(json.dumps(frames), encoding="utf-8")
     (out / "clip.json").write_text(json.dumps(clip, indent=2), encoding="utf-8")
     (out / "evidence.json").write_text(json.dumps(ev, indent=2), encoding="utf-8")
@@ -191,4 +204,5 @@ def analyse(video: str | Path, cfg: Config | None = None, *,
     progress(f"      wrote {out}")
 
     return {"hash": vhash, "dir": out, "meta": meta, "frames": frames, "clip": clip,
-            "evidence": ev, "evidence_text": text, "cached": False}
+            "evidence": ev, "evidence_text": text, "cached": False,
+            "keypoints": out / "keypoints.npz"}
