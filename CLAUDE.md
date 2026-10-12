@@ -590,9 +590,23 @@ Three refusals are load-bearing:
 timestamped `view_yaw` moments. Both providers' requests inspected via `--dry-run`:
 question last in each, no key in either payload.
 
-**Not yet run against a live API** — no key was available in the build environment. The
-measurement half, request assembly and both providers' wire formats are verified; the
-round trip is one command away once a key is in `.env`.
+**Gemini verified live (2026-10-11)**: `gemini-3.8-flash`, 1,874 in / 896 out, 13.1 s,
+$0.0048, plus a follow-up at 2,409 in with no re-measurement. The answer recommended a
+behaviourist and a vet unprompted, quoted the ear angles, and stated that the body and
+tail were not visible. **OpenAI is still unverified live** — no key available; its wire
+format is covered by tests and `--dry-run` only.
+
+### Reasoning tokens are billed, and the providers disagree about reporting
+
+The first live call exposed a money bug. Gemini reports `candidates_token_count` and
+`thoughts_token_count` separately and **charges for both** — measured 214 visible
+against 682 thinking, so billing the visible count alone understated the output charge
+roughly fourfold. OpenAI already folds reasoning into `output_tokens`, where adding it
+again would overstate. `normalise_usage` makes `output_tokens` the billed total on both.
+
+Same cause truncated the first answer mid-word: at `max_output_tokens=900`, thinking ate
+682 before the answer started. Default is now 3000, and truncation is surfaced rather
+than returned as though it were a complete answer.
 
 ### Footgun carried over
 

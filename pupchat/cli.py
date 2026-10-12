@@ -9,6 +9,16 @@ from pathlib import Path
 from .config import LICENCE_NOTICE, Config, load_env
 
 
+def _utf8_stdout() -> None:
+    """The model answers in Unicode; a cp1252 console turns its apostrophes and dashes
+    into mojibake, or raises outright. Reconfigure rather than strip the characters."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
+
 def _banner() -> None:
     print("=" * 74)
     print("Pupchat prototype")
@@ -46,9 +56,13 @@ def cmd_ask(a: argparse.Namespace) -> int:
     c = res["cost_usd"]
     u = res["usage"]
     cost_s = f" | ${c:.4f}" if c == c else ""
+    think = u.get("reasoning_tokens", 0)
+    think_s = f" ({think} thinking)" if think else ""
     print(f"[{res['provider']}/{res['model']} | {res['seconds']:.1f}s | "
           f"{u.get('input_tokens', '?')} in / {u.get('output_tokens', '?')} out"
-          f"{cost_s}]")
+          f"{think_s}{cost_s}]")
+    if res.get("truncated"):
+        print("[WARNING] the answer was cut off at the token limit.")
 
     if a.no_follow_up:
         return 0
@@ -88,6 +102,7 @@ def cmd_evidence(a: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    _utf8_stdout()
     load_env()
     ap = argparse.ArgumentParser(prog="pupchat", description=__doc__)
     sub = ap.add_subparsers(dest="cmd", required=True)

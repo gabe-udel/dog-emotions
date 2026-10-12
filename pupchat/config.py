@@ -128,7 +128,11 @@ class ProviderSettings:
     name: str
     model: str
     key_env: str
-    max_output_tokens: int = 900
+    max_output_tokens: int = 3000
+    """Generous because reasoning models spend this budget before the answer starts.
+    Measured on the first real Gemini call: 682 thinking tokens against 214 visible,
+    so a 900 cap truncated the answer mid-word."""
+
     timeout_s: float = 180.0
 
     def key(self) -> str:

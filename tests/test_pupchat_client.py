@@ -31,8 +31,11 @@ QUESTION = "Why does he do this?"
 
 class FakeOpenAIResponse:
     output_text = "His ears are back and low through most of the clip."
+    # OpenAI's output_tokens already INCLUDES its reasoning tokens.
     usage = {"input_tokens": 12_000, "output_tokens": 300,
-             "input_tokens_details": {"cached_tokens": 10_000}}
+             "input_tokens_details": {"cached_tokens": 10_000},
+             "output_tokens_details": {"reasoning_tokens": 120}}
+    incomplete_details = None
 
 
 class FakeOpenAIClient:
@@ -47,9 +50,18 @@ class FakeOpenAIClient:
 
 class FakeGeminiResponse:
     text = "His ears are back and low through most of the clip."
+    # Gemini reports the visible answer and its thinking SEPARATELY and bills both.
+    # These are the real proportions from the first live call.
     usage_metadata = types.SimpleNamespace(
-        prompt_token_count=9_000, candidates_token_count=280,
-        cached_content_token_count=0)
+        prompt_token_count=9_000, candidates_token_count=214,
+        thoughts_token_count=682, cached_content_token_count=0)
+    candidates = [types.SimpleNamespace(
+        finish_reason=types.SimpleNamespace(name="STOP"))]
+
+
+class FakeGeminiTruncated(FakeGeminiResponse):
+    candidates = [types.SimpleNamespace(
+        finish_reason=types.SimpleNamespace(name="MAX_TOKENS"))]
 
 
 class FakeGeminiClient:
@@ -286,17 +298,50 @@ def test_no_api_key_ever_appears_in_a_payload(cfg, video, monkeypatch, provider_
 
 # --------------------------------------------------------------- usage and cost
 
-def test_openai_usage_is_normalised():
+def test_openai_reasoning_tokens_are_not_double_counted():
+    """OpenAI's output_tokens already includes reasoning, so adding them again would
+    overstate the bill."""
     r = OpenAIProvider().send({"model": "x"}, Config(), client=FakeOpenAIClient())
     assert r.usage == {"input_tokens": 12_000, "output_tokens": 300,
-                       "cached_tokens": 10_000}
+                       "cached_tokens": 10_000, "reasoning_tokens": 120}
 
 
-def test_gemini_usage_is_normalised(cfg, video):
+def test_gemini_thinking_tokens_are_billed_as_output(cfg, video):
+    """The bug this pins: Gemini reports 214 visible tokens and 682 thinking tokens,
+    charges for both, and an earlier version billed only the visible count - under-
+    reporting the real cost by about four times, silently."""
     p = GeminiProvider().build_request(EVIDENCE, "q", video, cfg)
     r = GeminiProvider().send(p, cfg, client=FakeGeminiClient())
-    assert r.usage == {"input_tokens": 9_000, "output_tokens": 280,
-                       "cached_tokens": 0}
+    assert r.usage["output_tokens"] == 214 + 682
+    assert r.usage["reasoning_tokens"] == 682
+
+    # Compare the OUTPUT component alone. On a real call the input tokens dominate the
+    # total, so the headline cost moves by a third while the output charge quadruples -
+    # which is exactly why the undercount was easy to miss.
+    def out_cost(n):
+        return C.estimate_cost("gemini-3.8-flash",
+                               {"input_tokens": 0, "output_tokens": n,
+                                "cached_tokens": 0})
+
+    assert out_cost(r.usage["output_tokens"]) == pytest.approx(out_cost(214) * 4.19,
+                                                               rel=0.01)
+
+
+def test_truncation_is_surfaced_not_swallowed(cfg, video):
+    """A cut-off answer presented as a whole one is a silent failure."""
+    class Trunc(FakeGeminiClient):
+        def _generate(self, **payload):
+            self.calls.append(payload)
+            return FakeGeminiTruncated()
+
+    p = GeminiProvider().build_request(EVIDENCE, "q", video, cfg)
+    assert GeminiProvider().send(p, cfg, client=Trunc()).truncated
+    assert not GeminiProvider().send(p, cfg, client=FakeGeminiClient()).truncated
+
+
+def test_output_cap_leaves_room_for_thinking(cfg):
+    """900 truncated a real answer at 682 thinking + 214 visible."""
+    assert cfg.active.max_output_tokens >= 2000
 
 
 def test_cached_tokens_are_priced_lower_than_fresh_ones():

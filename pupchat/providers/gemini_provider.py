@@ -127,13 +127,29 @@ class GeminiProvider(Provider):
                     return v
             return 0
 
+        # Thinking tokens are billed as output but reported apart from the visible
+        # answer, so the billed total is the sum. Measured on a real call: 214 visible
+        # against 682 thinking - counting only the visible part understates the bill
+        # roughly fourfold, and silently.
+        visible = int(g("candidates_token_count", "output_tokens") or 0)
+        thinking = int(g("thoughts_token_count") or 0)
+
+        finish = ""
+        for cand in (getattr(resp, "candidates", None) or []):
+            fr = getattr(cand, "finish_reason", None)
+            if fr is not None:
+                finish = getattr(fr, "name", None) or str(fr)
+                break
+
         return ProviderResult(
             answer=answer,
             usage=normalise_usage(
                 g("prompt_token_count", "input_tokens"),
-                g("candidates_token_count", "output_tokens"),
-                g("cached_content_token_count", "cached_tokens")),
-            raw=resp)
+                visible + thinking,
+                g("cached_content_token_count", "cached_tokens"),
+                thinking),
+            raw=resp,
+            finish_reason=finish)
 
     def redact(self, payload, keep_chars: int = 24) -> dict:
         p = copy.deepcopy(payload)

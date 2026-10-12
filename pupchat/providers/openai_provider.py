@@ -70,12 +70,17 @@ class OpenAIProvider(Provider):
         answer = getattr(resp, "output_text", None) or str(resp)
         u = getattr(resp, "usage", None)
         u = (u.model_dump() if hasattr(u, "model_dump") else dict(u) if u else {})
+        # OpenAI's output_tokens ALREADY includes reasoning tokens, so unlike Gemini
+        # they must not be added again - reasoning is reported here for transparency.
         return ProviderResult(
             answer=answer,
             usage=normalise_usage(
                 u.get("input_tokens"), u.get("output_tokens"),
-                (u.get("input_tokens_details") or {}).get("cached_tokens")),
-            raw=resp)
+                (u.get("input_tokens_details") or {}).get("cached_tokens"),
+                (u.get("output_tokens_details") or {}).get("reasoning_tokens")),
+            raw=resp,
+            finish_reason=(getattr(resp, "incomplete_details", None)
+                           and getattr(resp.incomplete_details, "reason", "")) or "")
 
     def redact(self, payload, keep_chars: int = 24) -> dict:
         p = copy.deepcopy(payload)

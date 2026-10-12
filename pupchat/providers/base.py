@@ -27,9 +27,17 @@ MEDIA_VIDEO = "video"
 class ProviderResult:
     answer: str
     usage: dict = field(default_factory=dict)
-    """Normalised across providers: input_tokens, output_tokens, cached_tokens.
-    Each provider reports a different shape; cost accounting needs one."""
+    """Normalised across providers: input_tokens, output_tokens, cached_tokens,
+    reasoning_tokens. Each provider reports a different shape; cost accounting needs
+    one. `output_tokens` is always the BILLED total - see normalise_usage."""
     raw: object = None
+    finish_reason: str = ""
+    """Provider's own string. "MAX_TOKENS" and the like mean the answer is cut off, and
+    a truncated answer that is presented as a whole one is a silent failure."""
+
+    @property
+    def truncated(self) -> bool:
+        return "MAX_TOKEN" in (self.finish_reason or "").upper()
 
 
 class Provider(abc.ABC):
@@ -58,7 +66,21 @@ class Provider(abc.ABC):
         return out
 
 
-def normalise_usage(input_tokens=0, output_tokens=0, cached_tokens=0) -> dict:
+def normalise_usage(input_tokens=0, output_tokens=0, cached_tokens=0,
+                    reasoning_tokens=0) -> dict:
+    """One shape for cost accounting.
+
+    `output_tokens` must be what the provider BILLS as output, which is not always what
+    it shows you. Gemini reports `candidates_token_count` for the visible answer and
+    `thoughts_token_count` separately, and charges for both - on the first real call
+    here that was 214 visible against 682 thinking, so taking the visible count alone
+    understated the bill by about four times. OpenAI's `output_tokens` already includes
+    its reasoning tokens, so that one must NOT be added again.
+
+    `reasoning_tokens` is carried separately for transparency only; it is a component of
+    `output_tokens`, never an addition to it.
+    """
     return {"input_tokens": int(input_tokens or 0),
             "output_tokens": int(output_tokens or 0),
-            "cached_tokens": int(cached_tokens or 0)}
+            "cached_tokens": int(cached_tokens or 0),
+            "reasoning_tokens": int(reasoning_tokens or 0)}

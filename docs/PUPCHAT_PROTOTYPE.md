@@ -142,9 +142,28 @@ Keyed by SHA-256 of the file, so the same clip under two names is processed once
 `pipeline.CACHE_VERSION` when anything upstream changes meaning.
 
 The usage log is one JSON object per line: provider, model, tokens, cached tokens,
-estimated USD, seconds, and whether it was a follow-up. Prices live in
-`config.PRICING`; an unpriced model logs `null` rather than `0`, so a missing price
-cannot quietly understate a bill.
+reasoning tokens, estimated USD, seconds, finish reason, and whether it was a follow-up.
+Prices live in `config.PRICING`; an unpriced model logs `null` rather than `0`, so a
+missing price cannot quietly understate a bill.
+
+### Reasoning tokens are billed, and the two providers report them differently
+
+Found on the first live call, and it is a real money bug if you get it wrong:
+
+* **Gemini** reports `candidates_token_count` (the visible answer) and
+  `thoughts_token_count` separately, and **charges for both**. Measured: 214 visible
+  against 682 thinking. Billing only the visible count understates the output charge
+  roughly fourfold.
+* **OpenAI** already includes reasoning inside `output_tokens`, so adding it again
+  would overstate.
+
+`normalise_usage` makes `output_tokens` mean "the billed total" on both, with
+`reasoning_tokens` carried alongside for transparency. A test pins each direction.
+
+That same budget is also why `max_output_tokens` defaults to **3000**. At 900 the first
+real answer was truncated mid-word, because thinking consumed 682 of it before the
+answer began. Truncation is now surfaced as a warning rather than returned as if it
+were a whole answer.
 
 ---
 
@@ -154,7 +173,7 @@ cannot quietly understate a bill.
 .venv\Scripts\python.exe -m pytest tests\test_pupchat_evidence.py tests\test_pupchat_client.py -q
 ```
 
-61 tests. Every API call is mocked: **no test needs a key, opens a socket, or spends
+63 tests. Every API call is mocked: **no test needs a key, opens a socket, or spends
 money.** They cover the tier rule, the no-false-timestamp guarantee, low-coverage
 reporting, the wag gate, the banned-word list, the trimming regression, both providers'
 request shapes, media handling, usage normalisation and cost.
@@ -179,3 +198,25 @@ pupchat/
   web.py                 gradio page
   _src.py                bridge to src/, heavy imports kept lazy
 ```
+
+
+---
+
+## 9. Verified live
+
+**Gemini, 2026-10-11**, `videos/whie pom sample 15.mp4` (7.5 s), `gemini-3.8-flash`:
+
+| | |
+|---|---|
+| first question | 1,874 in / 896 out (490 thinking), 13.1 s, $0.0048 |
+| follow-up | 2,409 in, 15.3 s, $0.0053 - no re-measure, no re-upload |
+| measurements | cached from the first run, reused instantly |
+
+The answer recommended a certified behaviourist and a vet check in its second paragraph
+without being asked, used the ear measurements explicitly ("angled at over -100 degrees"),
+and said plainly "we can't see his body or tail in this clip" - the unavailable list
+doing its job.
+
+**OpenAI is not yet verified live** - no key was available. Its request assembly, frame
+sampling, redaction and usage normalisation are covered by tests and by `--dry-run`, but
+no live round trip has been made.

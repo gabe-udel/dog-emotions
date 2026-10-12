@@ -135,22 +135,29 @@ def ask_pupchat(video_path: str | Path, question: str, history: list | None = No
     res = provider.send(payload, cfg, client=client)
     elapsed = time.time() - t0
 
+    if res.truncated:
+        progress(f"[{provider.name}] WARNING: answer truncated "
+                 f"(finish_reason={res.finish_reason}). Raise "
+                 f"max_output_tokens in config.")
     cost = estimate_cost(settings.model, res.usage)
     log_usage({
         "when": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "provider": provider.name, "model": settings.model,
+        "finish_reason": res.finish_reason, "truncated": res.truncated,
         "video": video_path.name, "hash": vhash,
         "question": question[:200],
         "media": (provider.media_kind if provider.media_kind == MEDIA_VIDEO
                   else f"{len(media)} frames"),
         "usage": res.usage, "cost_usd": round(cost, 6) if cost == cost else None,
         "seconds": round(elapsed, 2), "follow_up": bool(history),
+        "finish_reason": res.finish_reason, "truncated": res.truncated,
     })
 
     return {
         "answer": res.answer, "evidence_text": evidence_text, "request": redacted,
         "usage": res.usage, "cost_usd": cost, "seconds": elapsed, "hash": vhash,
         "provider": provider.name, "model": settings.model,
+        "finish_reason": res.finish_reason, "truncated": res.truncated,
         "history": provider.extend_history(history, question, res.answer),
     }
 
