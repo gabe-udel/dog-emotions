@@ -19,7 +19,8 @@ from pathlib import Path
 
 import cv2
 
-from .config import PRICING, PROMPT_PATH, USAGE_LOG, Config, load_env
+from .config import (FREE_TIER, PRICING, PROMPT_PATH, USAGE_LOG, Config,
+                     load_env)
 from .config import system_prompt as _system_prompt
 from .pipeline import analyse, cache_dir, probe
 from .providers import MEDIA_VIDEO, get_provider
@@ -85,6 +86,8 @@ def prepare_media(video: Path, provider, cfg: Config, vhash: str, progress=print
 def estimate_cost(model: str, usage: dict) -> float:
     """USD from the normalised usage dict. NaN for an unpriced model - zero would
     quietly understate a bill."""
+    if FREE_TIER:
+        return 0.0        # paid rates in PRICING would report money never charged
     price = PRICING.get(model)
     if not price:
         return float("nan")

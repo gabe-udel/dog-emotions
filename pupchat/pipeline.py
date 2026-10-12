@@ -21,12 +21,14 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from . import _src
+from . import _src, spikes as spikes_mod
 from .config import OUT_DIR, Config
+from .derived import stillness_intervals, weight_shift_entry
 from .evidence import build_evidence, evidence_to_text
 from .reliability import load_reliability
+from .smoothing import OneEuroConfig, filter_keypoints, jitter
 
-CACHE_VERSION = 4
+CACHE_VERSION = 5
 """Bump when anything upstream of the cached rows changes meaning, so a stale cache is
 replaced rather than silently reused."""
 
@@ -158,12 +160,56 @@ def analyse(video: str | Path, cfg: Config | None = None, *,
                                       degree=1, conf_min=k.pcut, scale=side,
                                       repair="model")
 
+    # One Euro BEFORE features, as the last step on the keypoint tracks. Jitter is
+    # measured either side so the filter's effect is a recorded number rather than an
+    # assumption; see SmoothingConfig for why beta is 5.0 and not the paper's default.
+    sm = cfg.smoothing
+    n_body = len(cascade.sa_bodyparts)
+    n_face = len(V["ACTIVE_NAMES"])
+    body_arr = np.stack([b if b is not None else np.full((n_body, 3), np.nan)
+                         for b in bodies])
+    face_arr = np.stack([f if f is not None else np.full((n_face, 3), np.nan)
+                         for f in faces])
+    jitter_before = {"body": jitter(body_arr, k.pcut),
+                     "face": jitter(face_arr, k.pcut)}
+    jitter_after = dict(jitter_before)
+    if sm.enabled:
+        euro = OneEuroConfig(sm.min_cutoff, sm.beta, sm.d_cutoff, True)
+        body_arr = filter_keypoints(body_arr, eff_fps, euro, pcut=k.pcut)
+        face_arr = filter_keypoints(face_arr, eff_fps, euro, pcut=k.pcut)
+        jitter_after = {"body": jitter(body_arr, k.pcut),
+                        "face": jitter(face_arr, k.pcut)}
+        progress(f"[smooth] One Euro min_cutoff={sm.min_cutoff} beta={sm.beta}: "
+                 f"face jitter {jitter_before['face']:.3f} -> "
+                 f"{jitter_after['face']:.3f} px, body "
+                 f"{jitter_before['body']:.3f} -> {jitter_after['body']:.3f} px")
+        bodies = [body_arr[i] for i in range(len(bodies))]
+        faces = [face_arr[i] for i in range(len(faces))]
+
     progress("[4/4] features and evidence")
     frames, clip = V["clip_features"](results, bodies, faces,
                                       cascade.sa_bodyparts, eff_fps, k.pcut)
 
     rel = load_reliability()
     ev = build_evidence(frames, clip, rel, cfg.evidence)
+
+    # Flagged frames, stillness runs and weight shift ride alongside the tiered
+    # evidence rather than inside it: none of them has a measured error_sd, so none
+    # may be presented on the same footing as a validated feature.
+    if cfg.spikes.enabled:
+        ev["flagged_frames"] = spikes_mod.summarise(spikes_mod.scan(
+            frames, rel, eff_fps, sigmas=cfg.spikes.sigmas,
+            window=cfg.spikes.window, max_width=cfg.spikes.max_width))
+    ev["stillness"] = stillness_intervals(frames, rel, eff_fps,
+                                          min_seconds=cfg.stillness.min_seconds)
+    ev["weight_shift"] = weight_shift_entry(body_arr, cascade.sa_bodyparts, k.pcut,
+                                            eff_fps, cfg.evidence.min_coverage)
+    ev["smoothing"] = {
+        "one_euro": {"enabled": sm.enabled, "min_cutoff": sm.min_cutoff,
+                     "beta": sm.beta},
+        "jitter_px_before": {kk: round(v, 4) for kk, v in jitter_before.items()},
+        "jitter_px_after": {kk: round(v, 4) for kk, v in jitter_after.items()},
+    }
     text = evidence_to_text(ev, cfg.evidence)
 
     box = cascade.report(results)
@@ -189,10 +235,7 @@ def analyse(video: str | Path, cfg: Config | None = None, *,
     # first thing anyone refining a feature needs to know.
     np.savez_compressed(
         out / "keypoints.npz",
-        body=np.stack([b if b is not None else np.full((len(cascade.sa_bodyparts), 3),
-                                                       np.nan) for b in bodies]),
-        face=np.stack([f if f is not None else np.full((len(V["ACTIVE_NAMES"]), 3),
-                                                       np.nan) for f in faces]),
+        body=body_arr, face=face_arr,
         sa_names=np.array(cascade.sa_bodyparts, dtype=object),
         face_names=np.array(V["ACTIVE_NAMES"], dtype=object),
     )

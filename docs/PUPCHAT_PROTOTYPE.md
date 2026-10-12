@@ -202,7 +202,76 @@ pupchat/
 
 ---
 
-## 9. Seeing how a feature was calculated
+## 9. Keypoint smoothing, and an honest result
+
+A One Euro filter runs over the keypoint tracks before features are computed. Its cutoff
+rises with speed, so it smooths hard when a keypoint is nearly still and backs off when
+it moves - which is the property that matters here, because the fast movements are the
+signal.
+
+**Measured on `videos/whie pom sample 15.mp4` at 12.5 fps.** Jitter is the median
+per-frame residual displacement with whole-frame translation removed, so camera pan and
+the dog walking do not count.
+
+| beta | jitter vs raw | 1 Hz kept | 3 Hz kept | 5 Hz kept |
+|---|---|---|---|---|
+| 0.7 (paper default) | **-17%** | 92% | 58% | 43% |
+| 2.0 | -10% | 97% | 81% | 71% |
+| **5.0 (shipped)** | **-5%** | 99% | **92%** | **87%** |
+| 20.0 | -1% | 100% | 98% | 96% |
+
+Shipped numbers on that clip: face **4.137 -> 3.921 px**, body **7.417 -> 7.101 px**.
+
+**The honest reading is that the gain is small, and it has to be.** One Euro adapts on
+*speed*, and per-frame jitter is itself fast - the filter cannot tell a 4 px tracking
+wobble from a 4 px real movement, because at this frame rate they look identical. So the
+setting that preserves a wag barely touches the jitter, and the setting that removes the
+jitter eats the wag.
+
+Note the first row: at the paper's default beta, One Euro keeps **less** of a 3 Hz wag
+(58%) than the rolling median already in the pipeline (68.6%). Shipping that default
+would have been a regression dressed as an improvement. beta is 5.0 for that reason.
+
+Also worth knowing: the keypoint pass strides 25 fps down to 12.5, which puts 5 Hz at
+2.5 samples per cycle. Some of the loss in the table is the sampling rate, not the
+filter - raising `KeypointConfig.target_fps` would help more than retuning beta.
+
+---
+
+## 10. Flagged frames, stillness, weight shift
+
+Three additions that ride alongside the tiered evidence in `evidence.json` rather than
+inside it, because none has a measured `error_sd` and none may be presented on the same
+footing as a validated feature.
+
+**`flagged_frames`** - frames where a feature jumped and snapped back. The test that
+separates a glitch from a movement is what the series does either side: if the before
+and after baselines match and only the middle deviates, it is a spike; if they differ,
+the dog moved. Threshold is 4x the feature's own measured error. Flagged, never
+repaired - a spike is evidence the measurement is unreliable at that moment, and
+smoothing it away would destroy exactly that signal. Complementary to the RANSAC
+upstream, which only sees face keypoints.
+
+**`stillness`** - runs where movement stays inside each feature's own noise floor for
+2+ seconds. Reported both for all features at once and per feature, because whole-dog
+stillness needs every feature still simultaneously and a single jittery one vetoes it;
+without the per-feature runs an empty list reads as "never stopped moving" when it means
+"one measurement never settled".
+
+> It is deliberately **not** called freezing. Freezing is a behavioural label with a
+> specific meaning; what is measured is "no movement above measurement error", and a dog
+> standing calmly produces the same reading as a dog frozen in fear. Naming it freezing
+> in the evidence would be exactly the interpretation this layer exists to keep out.
+
+**`weight_shift`** - where the hips sit between the front and rear paw contacts, 0 over
+the rear and 1 over the front, normalised by the paw span. **Unavailable when the paws
+are not visible**, with the visibility of each paw reported either way. It carries
+`source: "no reliability measurement yet"` even when available, because it has never
+been differenced against ground truth.
+
+---
+
+## 11. Seeing how a feature was calculated
 
 `pupchat trace` joins the raw keypoint confidences to the feature values for the same
 frame, so a NaN stops being a dead end. It reads the cache and recomputes nothing.
@@ -232,13 +301,14 @@ And to watch the numbers move against the video, the research pipeline already d
 them on the frames:
 
 ```powershell
-.venv\Scripts\python.exe srcun_video.py --video "<file>" `
+.venv\Scripts\python.exe src
+un_video.py --video "<file>" `
     --snapshot face_projectace38\snapshot-best-008.pt --ransac --feature-overlay
 ```
 
 ---
 
-## 10. Verified live
+## 12. Verified live
 
 **Gemini, 2026-10-11**, `videos/whie pom sample 15.mp4` (7.5 s), `gemini-3.8-flash`:
 

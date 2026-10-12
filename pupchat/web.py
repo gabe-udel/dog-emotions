@@ -33,7 +33,9 @@ def build():
 
     load_env()
     cfg = Config()
-    state = {"history": None, "video": None}
+    # Last exchange is kept so the flag button can save what was actually shown,
+    # rather than re-deriving it from the chat widget's rendering.
+    state = {"history": None, "video": None, "last": None}
 
     def respond(message, chat_history, video):
         from .client import ask_pupchat
@@ -63,6 +65,10 @@ def build():
             return chat_history, ""
 
         state["history"] = res["history"]
+        state["last"] = {"question": message, "answer": res["answer"],
+                         "evidence_text": res["evidence_text"],
+                         "provider": res["provider"], "model": res["model"],
+                         "hash": res["hash"]}
         cost = res["cost_usd"]
         footer = (f"\n\n<sub>{res['seconds']:.0f}s"
                   + (f" · ${cost:.4f}" if cost == cost else "")
@@ -71,6 +77,20 @@ def build():
             {"role": "user", "content": message},
             {"role": "assistant", "content": res["answer"] + footer}]
         return chat_history, ""
+
+    def flag(note, video):
+        from .feedback import flag_answer
+
+        last = state["last"]
+        if not last:
+            return "Ask something first - there is no answer to flag yet."
+        rec = flag_answer(video, last["question"], last["answer"], note or "",
+                          evidence_text=last["evidence_text"],
+                          provider=last["provider"], model=last["model"],
+                          video_hash=last["hash"])
+        if rec.get("clip"):
+            return f"Saved as `{rec['id']}`. Clip copied to `{rec['clip']}`."
+        return f"Saved as `{rec['id']}` (clip not copied)."
 
     def show_evidence(video):
         if not video:
@@ -94,9 +114,20 @@ def build():
                                  autofocus=True)
                 gr.Markdown("*Educational guidance only. For aggression, bite risk, "
                             "pain or illness, see a vet or a certified behaviourist.*")
+                with gr.Accordion("Flag this answer", open=False):
+                    gr.Markdown(
+                        "Saves the clip, your question, the answer and the evidence "
+                        "so the case can be re-run later against a changed prompt, "
+                        "model or feature set.")
+                    note = gr.Textbox(label="What was wrong with it?", lines=2,
+                                      placeholder="e.g. called it playful; ears are "
+                                                  "clearly pinned")
+                    flag_btn = gr.Button("Flag", variant="stop")
+                    flag_out = gr.Markdown()
 
         msg.submit(respond, [msg, chat, video], [chat, msg])
         ev_btn.click(show_evidence, [video], [ev_box])
+        flag_btn.click(flag, [note, video], [flag_out])
 
     return demo
 

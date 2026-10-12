@@ -82,6 +82,50 @@ class KeypointConfig:
 
 
 @dataclass(frozen=True)
+class SmoothingConfig:
+    """One Euro over keypoint tracks, before features are computed.
+
+    Defaults chosen from a measured sweep, NOT from the paper. On this data the
+    trade-off is direct and there is no free lunch:
+
+        beta   jitter vs raw   3 Hz kept   5 Hz kept
+        0.7        -17%           58%         43%     <- flattens fast motion
+        2.0        -10%           81%         71%
+        5.0         -5%           92%         87%     <- default
+       20.0         -1%           98%         96%
+
+    beta=0.7 cuts jitter most but keeps less of a 3 Hz wag than the rolling median
+    already in the pipeline (68.6%), which would make it a regression. beta=5.0 is the
+    setting that satisfies "do not flatten fast motion" while still removing something.
+    The honest summary is that the gain is small: see docs/PUPCHAT_PROTOTYPE.md.
+    """
+
+    enabled: bool = True
+    min_cutoff: float = 0.5
+    beta: float = 5.0
+    d_cutoff: float = 1.0
+
+
+@dataclass(frozen=True)
+class SpikeConfig:
+    """Flagging frames where a feature jumps and snaps back."""
+
+    enabled: bool = True
+    sigmas: float = 4.0
+    """Threshold as a multiple of the feature's OWN measured error."""
+    window: int = 3
+    """Frames either side used for the local baseline."""
+    max_width: int = 3
+    """Longer than this and it is a movement, not a spike."""
+
+
+@dataclass(frozen=True)
+class StillnessConfig:
+    min_seconds: float = 2.0
+    """A run shorter than this is not reported."""
+
+
+@dataclass(frozen=True)
 class EvidenceConfig:
     min_coverage: float = 0.40
     """Below this a feature is reported as unavailable, with a reason."""
@@ -188,12 +232,19 @@ USAGE_LOG = OUT_DIR / "usage.jsonl"
 
 PROVIDERS = ("openai", "gemini")
 
+# Set PUPCHAT_FREE_TIER=1 when the key is on a free tier. PRICING holds paid rates, so
+# without this the usage log reports money that was never charged.
+FREE_TIER = os.getenv("PUPCHAT_FREE_TIER", "").strip().lower() in ("1", "true", "yes")
+
 
 @dataclass(frozen=True)
 class Config:
     vision: VisionConfig = field(default_factory=VisionConfig)
     keypoint: KeypointConfig = field(default_factory=KeypointConfig)
     evidence: EvidenceConfig = field(default_factory=EvidenceConfig)
+    smoothing: SmoothingConfig = field(default_factory=SmoothingConfig)
+    spikes: SpikeConfig = field(default_factory=SpikeConfig)
+    stillness: StillnessConfig = field(default_factory=StillnessConfig)
     openai: ProviderSettings = field(default_factory=_openai_settings)
     gemini: ProviderSettings = field(default_factory=_gemini_settings)
     provider: str = field(
