@@ -66,9 +66,16 @@ Measurements only, no key required:
 
 ## 3. The web page
 
+**Double-click `Pupchat App.bat`**, or from a terminal opened in the project folder:
+
 ```powershell
-.venv\Scripts\python.exe -m pupchat.web        # http://127.0.0.1:7860
+.venv\Scripts\python.exe -m pupchat.web
 ```
+
+Either way the page is at <http://127.0.0.1:7860> and the browser opens by itself.
+The launcher keeps its console window on purpose: Pupchat is a web server, so that
+window IS the server - closing it or pressing Ctrl+C stops the page - and it prints the
+progress of the keypoint pass, which otherwise looks like a hang.
 
 Opens a local Gradio page: upload a video, ask, keep chatting. There is a
 **Show the measurements** button so the evidence can be read directly, and a
