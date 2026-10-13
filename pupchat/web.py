@@ -132,8 +132,12 @@ def build():
     return demo
 
 
-def main() -> None:
-    build().launch(inbrowser=True, show_api=False)
+def main(port: int = 7860, open_browser: bool = True) -> None:
+    # No show_api kwarg: Gradio 6 removed it, and passing it raises on launch. That
+    # went unnoticed because the page was only ever checked by constructing it with
+    # build(); constructing a Blocks never touches launch's signature.
+    build().launch(server_name="127.0.0.1", server_port=port,
+                   inbrowser=open_browser)
 
 
 if __name__ == "__main__":

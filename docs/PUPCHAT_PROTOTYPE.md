@@ -67,11 +67,18 @@ Measurements only, no key required:
 ## 3. The web page
 
 ```powershell
-.venv\Scripts\python.exe -m pupchat.web
+.venv\Scripts\python.exe -m pupchat.web        # http://127.0.0.1:7860
 ```
 
 Opens a local Gradio page: upload a video, ask, keep chatting. There is a
-**Show the measurements** button so the evidence can be read directly.
+**Show the measurements** button so the evidence can be read directly, and a
+**Flag this answer** panel that saves the clip, question, answer, evidence and your note.
+
+Verified serving, not just constructing: HTTP 200, title `Pupchat`, with the video,
+chatbot, evidence box, flag panel and `/respond` endpoint all present. That distinction
+matters - `main()` previously called `launch(show_api=False)`, an argument Gradio 6
+removed, so the page constructed perfectly and crashed on startup. A test now binds
+`main()`'s arguments against the real `launch` signature.
 
 **The first question on a new video takes minutes.** The keypoint pass runs on CPU at
 roughly 1.2 seconds per frame. Every later question on the same video is fast, because
