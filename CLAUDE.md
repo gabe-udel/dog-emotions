@@ -519,10 +519,23 @@ takes ~42 min, so do not re-run it casually.
 
 ## 14. Licences
 
+Full text in [ATTRIBUTION.md](ATTRIBUTION.md), which is also what `/api/health` serves
+and what the web page renders.
+
 DogFLW is **CC BY-NC 4.0 — non-commercial**, and that restriction propagates to any model
 trained on it. StanfordExtra v12 carries its own terms and is **not** committed to this
 repo. Mixkit clip 1476 is Mixkit Free License; `dog_walk_sf.ogv` is CC BY-SA 3.0.
-SuperAnimal weights follow the DeepLabCut Model Zoo terms.
+SuperAnimal weights are a **Modified MIT**: academic and non-commercial use, copyright
+notice must travel with copies, commercial licensing via EPFL-TTO.
+
+**A correction worth knowing.** `LICENCE_NOTICE` used to say this "must not be deployed
+publicly", which was stricter than either licence actually is. Both restrict
+**commercial** use, not public hosting: CC BY-NC explicitly permits sharing for
+non-commercial purposes *with attribution*, and the Modified MIT permits non-commercial
+use with the notice carried along. So a free demo is allowed and the credit is a
+**condition** of it. Selling it, running ads on it, or using it to promote a business
+is not. The notice now says that, and the attribution travels with the API so a front
+end cannot leave it behind.
 
 ---
 
@@ -539,7 +552,11 @@ function. No model, training or evaluation code was touched.
 .venv\Scripts\python.exe -m pupchat ask --video "<file>" --question "<text>"
 .venv\Scripts\python.exe -m pupchat evidence --video "<file>"     # no key needed
 .venv\Scripts\python.exe -m pupchat.web                            # gradio page
+.venv\Scripts\python.exe -m pupchat.api                            # the Stitch web app
 ```
+
+Or double-click: **`Pupchat Web App.bat`** for the local page, **`Share Pupchat.bat`**
+to put it on the internet behind a Cloudflare tunnel (see below).
 
 ### Two providers, one prompt
 
@@ -618,6 +635,37 @@ a feature is NaN unless EVERY keypoint it needs clears the cut.
 
 `pipeline.py` caches `keypoints.npz` for this (CACHE_VERSION 4); older caches need
 `--force`.
+
+### Sharing it: what changes when it is not just you
+
+`Share Pupchat.bat` starts the server, opens a **Cloudflare quick tunnel** and prints a
+random `trycloudflare.com` address. No account, no card, and the address dies with the
+window. The tunnel was chosen over hosting on the measurement: a cold analysis of a
+7.5 s clip is **93 s on 12 cores**, so on a 2-vCPU free tier it would be eight to ten
+minutes per visitor. The host's own machine is the fastest cheap option available. (For
+the record, that door is also shut: since July 2026 Hugging Face free accounts cannot
+create Docker Spaces, and a CPU Gradio Space needs PRO.)
+
+`pupchat/guard.py` holds the four things that only matter once someone else can reach
+it. **Localhost is exempt from all of them**, so a local run behaves exactly as it did
+before the module existed — which is also why they need tests rather than manual
+checking.
+
+| | why |
+|---|---|
+| **Spend caps**, per visitor and global | An ask is ~$0.0048 measured, so 300/day bounds the bill at about $1.44. The **global** cap is the load-bearing one: per-IP counting rests on a forwarding header the visitor controls, and a cap that can be rotated away is not a budget. |
+| **Streaming size limit** | The 80 MB cap existed but ran after `await file.read()`, so a 10 GB POST was a 10 GB allocation before the 413. `read_capped` stops mid-stream. |
+| **One analysis at a time, in a thread** | `analyse()` is 93 s of blocking CPU, and `/api/analyse` *and* `/api/ask` both called it from an `async def` — so one measurement stalled every other request, the page included, for its full duration. The waiting room is bounded at 6: being refused instantly beats waiting ten minutes behind people the page never mentioned. |
+| **24 h retention** | Strangers' videos land on the host's disk. Swept only in share mode — deleting the researcher's own test clips on a timer would be a surprise, and locally there is no stranger whose video needs removing. Legacy uploads under the old temp path are never swept. |
+
+Two honest limits. A visitor can forge `CF-Connecting-IP` and land in a fresh bucket
+each request, which is why the global cap exists and why the per-IP cap is documented
+as a courtesy rather than a control. And the per-IP header is *trusted* here, which
+would be wrong behind a general proxy — behind a quick tunnel it is the only source of
+the visitor's address.
+
+`PUPCHAT_SHARE=1` gates retention and the visitor notice on the page. It does **not**
+gate the caps or the queue, which are always on and simply never fire for 127.0.0.1.
 
 ### Footgun carried over
 

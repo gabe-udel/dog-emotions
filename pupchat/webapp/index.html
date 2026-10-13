@@ -78,11 +78,18 @@
       </section>
     </div>
 
-    <div class="p-space-md border-t border-outline-variant/60 bg-surface-container-low">
+    <div class="p-space-md border-t border-outline-variant/60 bg-surface-container-low space-y-2">
       <div class="flex items-center gap-2 font-label-sm text-label-sm text-outline">
         <span id="healthDot" class="w-2 h-2 rounded-full bg-outline"></span>
         <span id="healthText" class="truncate">connecting…</span>
       </div>
+      <!-- Attribution is a condition of CC BY-NC, not a courtesy, so it is on the
+           page and not only in the docs. Text comes from /api/health so the page and
+           the API can never disagree about it. -->
+      <p id="creditLine" class="font-label-sm text-label-sm text-outline/80 leading-snug"></p>
+      <p class="font-label-sm text-label-sm text-outline/70 leading-snug">
+        Non-commercial demo. Research prototype, not a product.
+      </p>
     </div>
   </div>
 </aside>
@@ -147,6 +154,9 @@
         <p class="text-center font-label-sm text-label-sm text-outline mt-space-sm">
           Pupchat is educational and doesn't replace a vet or certified behaviorist.
         </p>
+        <!-- Shown only when the server is in share mode: these facts are about
+             OTHER people's uploads, so they would be noise on a local run. -->
+        <p id="shareNotice" class="hidden text-center font-label-sm text-label-sm text-outline/80 mt-1 leading-snug"></p>
       </div>
     </div>
   </main>

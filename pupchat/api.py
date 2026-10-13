@@ -8,12 +8,17 @@ exposes the pipeline over HTTP. That is all this module is.
 
 CORS is wide open because a Stitch export opened from the filesystem or served on
 another port is a different origin, and a prototype that silently fails CORS looks like
-a broken backend. That is safe here only because this is a local, non-commercial
-prototype and must not be deployed - see the licence note.
+a broken backend. Open CORS is not an authorisation hole here - there is nothing to
+authorise and no cookie to ride - but it does mean any page can drive this server, so
+the spend caps in `guard` are what stand between a shared URL and a bill.
 
 Endpoints are shaped around the two costs: measuring a video is minutes of CPU, asking
 a question is seconds. So analysis happens once per file hash and every later call
 refers to the hash rather than re-uploading.
+
+Both costs are paid in a worker thread behind a one-at-a-time queue. `analyse()` is
+~93 s of blocking CPU, and awaiting it directly on the event loop stalled every other
+request - including the page itself - for the whole measurement.
 """
 from __future__ import annotations
 
@@ -33,12 +38,15 @@ from pathlib import Path
 # Module scope, not inside build_app: `from __future__ import annotations` turns the
 # endpoint annotations into strings, and FastAPI resolves them against module globals.
 # Imported locally they are invisible there, and UploadFile fails to resolve at runtime.
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import LICENCE_NOTICE, OUT_DIR, Config, load_env
+from .config import (ATTRIBUTION, LICENCE_NOTICE, OUT_DIR, Config, load_env,
+                     share_mode)
+from .guard import (AnalysisQueue, Budget, BudgetExceeded, QueueFull, client_ip,
+                    read_capped, sweep)
 from .pipeline import analyse, cache_dir, probe, video_hash
 
 WEBAPP = Path(__file__).resolve().parent / "webapp"
@@ -148,32 +156,79 @@ def build_app():
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
                        allow_headers=["*"])
 
+    cfg0 = Config()
+    budget = Budget(OUT_DIR / "share_budget.json", cfg0.share)
+    queue = AnalysisQueue(cfg0.share.max_waiting)
+    app.state.budget, app.state.queue = budget, queue
+
+    def spend(kind: str, request: Request) -> None:
+        """Count a use against the daily caps, or refuse with a 429.
+
+        Localhost never counts, so this is invisible when you run Pupchat yourself.
+        """
+        try:
+            budget.spend(kind, client_ip(request))
+        except BudgetExceeded as e:
+            raise HTTPException(429, str(e),
+                                headers={"Retry-After": str(e.retry_after_s)})
+
+    async def queued(fn, *args, **kwargs):
+        """Run blocking pipeline work in a thread, one caller at a time."""
+        try:
+            return await queue.run(fn, *args, **kwargs)
+        except QueueFull as e:
+            ahead = e.args[0] if e.args else queue.max_waiting
+            raise HTTPException(
+                503, f"{ahead} clips are already queued for measuring, and each "
+                     f"takes about a minute and a half of CPU. Try again shortly.",
+                headers={"Retry-After": "90"})
+
+    if share_mode():
+        gone = sweep(UPLOADS, OUT_DIR, cfg0.share.retention_hours)
+        if gone:
+            print(f"[share] removed {len(gone)} clip(s) past the "
+                  f"{cfg0.share.retention_hours:g}h retention window")
+
     @app.get("/api/health")
     def health():
         cfg = Config()
         return {"ok": True, "provider": cfg.provider, "model": cfg.active.model,
                 "licence": LICENCE_NOTICE,
+                "attribution": ATTRIBUTION,
                 "upload": {"min_seconds": cfg.upload.min_seconds,
                            "max_seconds": cfg.upload.max_seconds,
                            "max_bytes": cfg.upload.max_bytes},
+                "share": {
+                    "enabled": share_mode(),
+                    "retention_hours": cfg.share.retention_hours,
+                    "asks_per_day": cfg.share.asks_per_ip_per_day,
+                    "videos_per_day": cfg.share.analyses_per_ip_per_day,
+                    "queue_depth": queue.depth,
+                },
                 "key_configured": bool(os_getenv(cfg.active.key_env))}
 
     @app.post("/api/analyse")
-    async def api_analyse(file: UploadFile = File(...)):
-        """Upload a clip, measure it, get the evidence. Minutes of CPU the first time,
-        instant afterwards - the result is cached by the file's own hash."""
+    async def api_analyse(request: Request, file: UploadFile = File(...)):
+        """Upload a clip, measure it, get the evidence. About 93 s of CPU the first
+        time, instant afterwards - the result is cached by the file's own hash.
+
+        The daily cap is charged only for work actually done. Re-sending a clip that
+        is already measured is free, so a visitor who reloads the page does not spend
+        their allowance on a cache hit.
+        """
         cfg = Config()
-        data = await file.read()
-        if len(data) > cfg.upload.max_bytes:
-            raise HTTPException(413, f"that file is "
-                                     f"{len(data) / 1e6:.0f} MB; the limit is "
-                                     f"{cfg.upload.max_bytes / 1e6:.0f} MB")
+        try:
+            data = await read_capped(file, cfg.upload.max_bytes)
+        except ValueError as e:
+            raise HTTPException(413, str(e))
         path = _store_upload(file.filename or "clip.mp4", data)
         try:
             duration = check_duration(path, cfg)
         except ValueError as e:
             raise HTTPException(400, str(e))
-        res = analyse(path, cfg, progress=lambda *a, **k: None)
+        if not (cache_dir(video_hash(path)) / "evidence.json").exists():
+            spend("analyse", request)
+        res = await queued(analyse, path, cfg, progress=lambda *a, **k: None)
         return json_safe({
             "hash": res["hash"],
             "duration_s": round(duration, 2),
@@ -184,21 +239,26 @@ def build_app():
         })
 
     @app.post("/api/ask")
-    async def api_ask(question: str = Form(...), hash: str = Form(None),
-                      video: str = Form(None), history: str = Form(None),
-                      profile: str = Form(None)):
+    async def api_ask(request: Request, question: str = Form(...),
+                      hash: str = Form(None), video: str = Form(None),
+                      history: str = Form(None), profile: str = Form(None)):
         """Ask about an already-analysed clip. `history` is the JSON list returned by
-        the previous call, so follow-ups cost no re-measurement."""
+        the previous call, so follow-ups cost no re-measurement.
+
+        Queued like /api/analyse, because ask_pupchat() calls analyse() itself - on an
+        unmeasured clip this endpoint pays the full CPU cost too.
+        """
         from .client import ask_pupchat
         try:
             path = _resolve(video, hash)
         except FileNotFoundError as e:
             raise HTTPException(status_code=404, detail=str(e))
         turns = json.loads(history) if history else None
+        spend("ask", request)
         try:
-            res = ask_pupchat(path, question, history=turns, cfg=Config(),
-                              progress=lambda *a, **k: None,
-                              profile=profile or None)
+            res = await queued(ask_pupchat, path, question, history=turns,
+                               cfg=Config(), progress=lambda *a, **k: None,
+                               profile=profile or None)
         except SystemExit as e:                      # missing key, bad provider
             raise HTTPException(status_code=503, detail=str(e))
         return json_safe({

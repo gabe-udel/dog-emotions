@@ -55,11 +55,25 @@ def test_health_reports_the_configured_provider(client):
 
 def test_health_carries_the_licence_notice(client):
     """Non-commercial weights. A front end built on this needs to be told, so the
-    constraint travels with the API rather than living only in the docs."""
+    constraint travels with the API rather than living only in the docs.
+
+    The notice used to say "must not be deployed publicly", which was stricter than
+    either licence: both restrict commercial use, not public hosting. What must stay
+    pinned is the real constraint - non-commercial - and the fact that it is stated.
+    """
     notice = client.get("/api/health").json()["licence"].lower()
     assert "cc by-nc" in notice
     assert "commercially" in notice
-    assert "not be deployed" in notice
+    assert "never sold" in notice
+    assert "not a vet" in notice
+
+
+def test_health_carries_the_attribution_the_licence_requires(client):
+    """CC BY-NC is BY: credit is a condition, not a courtesy. It travels with the API
+    so a front end that only reads JSON cannot leave it behind."""
+    credit = client.get("/api/health").json()["attribution"]
+    assert "DogFLW" in credit
+    assert "DeepLabCut" in credit or "SuperAnimal" in credit
 
 
 def test_unanalysed_hash_is_a_404_not_a_500(client):
@@ -98,15 +112,29 @@ def test_flags_endpoint_returns_a_list(client):
 
 # ------------------------------------------------------------------ upload identity
 
-def test_the_same_bytes_under_two_names_are_one_file(tmp_path):
+@pytest.fixture
+def upload_dir(tmp_path, monkeypatch):
+    """Point the upload store at a temp folder.
+
+    Uploads used to live in the system temp directory, where test litter was
+    invisible; they are project-local now, so a test that called _store_upload for
+    real left 3-byte .mp4 files in outputs/ for the retention sweep to find.
+    """
+    import pupchat.api as A
+    monkeypatch.setattr(A, "UPLOADS", tmp_path / "uploads")
+    return tmp_path / "uploads"
+
+
+def test_the_same_bytes_under_two_names_are_one_file(upload_dir):
     """Analysis is minutes of CPU, so re-uploading the same clip must not redo it."""
     from pupchat.api import _store_upload
     a = _store_upload("first.mp4", b"identical bytes")
     b = _store_upload("second.mp4", b"identical bytes")
     assert a == b
+    assert a.parent == upload_dir
 
 
-def test_different_bytes_get_different_files():
+def test_different_bytes_get_different_files(upload_dir):
     from pupchat.api import _store_upload
     a = _store_upload("clip.mp4", b"one")
     b = _store_upload("clip.mp4", b"two")

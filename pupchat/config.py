@@ -22,11 +22,28 @@ SNR_JSON = ROOT / "outputs" / "feature_snr.json"
 DEFAULT_SNAPSHOT = ROOT / "face_project" / "face38" / "snapshot-best-008.pt"
 
 # Non-commercial weights. Said out loud in the CLI and the web page, not only in docs.
+#
+# An earlier version of this notice said "must not be deployed publicly", which was
+# stricter than either licence. Both restrict COMMERCIAL use, not public hosting:
+# DogFLW is CC BY-NC 4.0, which permits sharing for non-commercial purposes with
+# attribution, and the SuperAnimal weights are a Modified MIT granting academic and
+# non-commercial use with the copyright notice carried along. So a free demo is
+# allowed; charging for it, putting ads on it, or using it to promote a business is
+# not. The attribution those licences require is in ATTRIBUTION.md and on the page.
 LICENCE_NOTICE = (
-    "Prototype only. DogFLW is CC BY-NC 4.0 and SuperAnimal follows the DeepLabCut "
-    "Model Zoo terms, so this must not be deployed publicly or used commercially. "
+    "Prototype only, and free to try: DogFLW is CC BY-NC 4.0 and SuperAnimal follows "
+    "the DeepLabCut Model Zoo terms, so this may be shared as a non-commercial demo "
+    "but never sold, monetised or used commercially. "
     "Educational guidance only - not a vet or a certified behaviourist."
 )
+
+ATTRIBUTION = (
+    "Face landmarks: DogFLW (Martvel et al.), CC BY-NC 4.0. "
+    "Body pose: DeepLabCut SuperAnimal-Quadruped (Ye et al., Mathis Lab), "
+    "DeepLabCut Model Zoo terms."
+)
+"""The credit CC BY-NC actually requires. Travels with /api/health so it cannot be
+left behind by a front end that only reads the API."""
 
 
 @dataclass(frozen=True)
@@ -96,6 +113,47 @@ class UploadConfig:
     max_bytes: int = 80 * 1024 * 1024
     tolerance_s: float = 0.25
     """Container durations are approximate; a 5.0 s clip often reports 4.97."""
+
+
+@dataclass(frozen=True)
+class ShareConfig:
+    """Caps that only bite when someone other than you is using this.
+
+    Localhost is exempt from all of them, so running Pupchat on your own machine is
+    unchanged. These are the numbers for the tunnel case.
+
+    The ask caps are a spend decision, not a capacity one. A measured ask is about
+    $0.0048, so 300/day is roughly $1.44/day of worst case. The per-visitor cap stops
+    ordinary over-use; the total is what actually bounds the bill, because a visitor
+    can forge the forwarding header the per-IP count depends on.
+
+    The analysis caps are capacity: 93 s of CPU each (measured, 7.5 s clip, 12 cores),
+    so 100/day is about two and a half hours of the host's machine.
+    """
+
+    asks_per_ip_per_day: int = 20
+    total_asks_per_day: int = 300
+    analyses_per_ip_per_day: int = 10
+    total_analyses_per_day: int = 100
+
+    max_waiting: int = 6
+    """Queued analyses beyond the running one. Past this a visitor is refused rather
+    than left to wait ten minutes behind people the page never mentioned."""
+
+    retention_hours: float = 24.0
+    """How long a stranger's video stays on the host's disk. Only swept in share
+    mode - deleting the researcher's own test clips on a timer would be a surprise,
+    and locally there is no stranger whose video needs removing."""
+
+
+def share_mode() -> bool:
+    """True when Pupchat is being exposed to other people.
+
+    Set by "Share Pupchat.bat". It does NOT gate the rate limits or the queue, which
+    are always on and simply never fire for localhost; it gates retention and the
+    privacy line on the page, both of which are about other people's files.
+    """
+    return os.getenv("PUPCHAT_SHARE", "").strip().lower() in ("1", "true", "yes")
 
 
 @dataclass(frozen=True)
@@ -263,6 +321,7 @@ class Config:
     upload: UploadConfig = field(default_factory=UploadConfig)
     spikes: SpikeConfig = field(default_factory=SpikeConfig)
     stillness: StillnessConfig = field(default_factory=StillnessConfig)
+    share: ShareConfig = field(default_factory=ShareConfig)
     openai: ProviderSettings = field(default_factory=_openai_settings)
     gemini: ProviderSettings = field(default_factory=_gemini_settings)
     provider: str = field(

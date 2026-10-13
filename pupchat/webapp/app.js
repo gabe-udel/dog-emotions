@@ -473,6 +473,26 @@ function autoGrow() {
   t.style.height = Math.min(t.scrollHeight, 160) + "px";
 }
 
+/* Credits, and - when the server is shared - what a visitor should know before
+ * uploading a video of their dog.
+ *
+ * Both come from /api/health rather than being written into the HTML, so the licence
+ * text, the retention window and the daily caps have exactly one source. A notice
+ * that says "deleted after 24 hours" while the server is configured for 72 would be
+ * worse than no notice at all. */
+function showCredits(h) {
+  if (h.attribution) $("creditLine").textContent = h.attribution;
+
+  const share = h.share || {};
+  if (!share.enabled) return;
+  const el = $("shareNotice");
+  el.textContent =
+    `Shared demo: videos you upload are deleted after ${share.retention_hours} hours. ` +
+    `${share.videos_per_day} videos and ${share.asks_per_day} questions per visitor per day. ` +
+    `Please don't upload anything you wouldn't want a stranger to see.`;
+  el.classList.remove("hidden");
+}
+
 async function boot() {
   try {
     const h = await (await fetch(`${API}/api/health`)).json();
@@ -481,6 +501,7 @@ async function boot() {
     $("healthText").textContent = h.key_configured
       ? `${h.provider} · ready` : `${h.provider} · no API key set`;
     $("modelBadge").textContent = h.model || "";
+    showCredits(h);
   } catch {
     $("healthDot").className = "w-2 h-2 rounded-full bg-error";
     $("healthText").textContent = "server not reachable";
