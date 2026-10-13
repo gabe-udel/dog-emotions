@@ -271,7 +271,42 @@ been differenced against ground truth.
 
 ---
 
-## 11. Seeing how a feature was calculated
+## 11. Answer format, and how it is checked
+
+`prompts/system.md` makes Pupchat a warm educational guide rather than a liability
+notice. The five-section format for a new video is **What I see / What it likely means /
+Do / Don't / Try this next**; follow-ups answer conversationally and do not repeat it.
+Raw numbers never appear - "his ears are pinned back", not "ears angled 110 degrees".
+A professional referral is one sentence at the end, only when warranted, never leading.
+
+Rules the rewrite did not mention are carried over from the previous prompt, because
+each guards against a specific way of overclaiming: the ground-truth vs estimated
+reliability split, "an unmeasured thing means no information, not an absence", never
+inventing a timestamp for a clip-level measurement, and never diagnosing.
+
+`pupchat/answer_check.py` turns those rules into pure functions, so they are testable
+without the API:
+
+```python
+check(answer, new_video=True)   # five sections present and in order
+check(answer, new_video=False)  # follow-up must NOT repeat the format
+raw_degrees(answer)             # "110 degrees", "-45.5 deg"
+leaked_jargon(answer)           # face-widths, SNR, keypoints, coverage
+referral_report(answer)         # at most one, and in the last quarter
+aversive_advice(answer)         # prong/shock/choke, negation-aware
+```
+
+The same functions run in the tests against fixtures and against live answers, so what
+is asserted offline and what is measured online cannot drift apart. **They check shape,
+not quality**: a warm, confident, wrong answer passes every one of them.
+
+One subtlety worth keeping: `aversive_advice` is negation-aware. A plain keyword match
+flags "Don't scold or punish him" as aversive advice, which is backwards - the prompt's
+whole Don't section is built from sentences like that.
+
+---
+
+## 12. Seeing how a feature was calculated
 
 `pupchat trace` joins the raw keypoint confidences to the feature values for the same
 frame, so a NaN stops being a dead end. It reads the cache and recomputes nothing.
@@ -308,7 +343,7 @@ un_video.py --video "<file>" `
 
 ---
 
-## 12. Verified live
+## 13. Verified live
 
 **Gemini, 2026-10-11**, `videos/whie pom sample 15.mp4` (7.5 s), `gemini-3.8-flash`:
 

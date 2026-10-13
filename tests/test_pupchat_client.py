@@ -139,9 +139,12 @@ def test_both_providers_send_the_identical_evidence_text(cfg, video):
 
 
 def test_system_prompt_carries_the_hard_limits():
-    txt = C.system_prompt()
-    for required in ("veterinarian", "certified behaviourist", "Never diagnose"):
-        assert required in txt
+    """Spelling is not the rule; the referral triggers and the no-diagnosis line are.
+    The prompt moved to US spelling with the Pupchat rewrite, so match either."""
+    txt = C.system_prompt().lower()
+    assert "veterinarian" in txt
+    assert "certified behaviorist" in txt or "certified behaviourist" in txt
+    assert "never diagnose" in txt
 
 
 # --------------------------------------------------------------- question last
@@ -417,3 +420,60 @@ def test_history_shape_is_provider_neutral(cfg, tmp_path, monkeypatch, video):
         out[name] = res["history"]
     assert out["openai"] == out["gemini"], \
         "a transcript must survive a provider switch mid-conversation"
+
+
+# --------------------------------------------------------------- transient retry
+
+def test_transient_failures_are_classified_by_type_not_only_message():
+    """A dropped connection carries none of the words a 503 does. The first version
+    matched text only and let RemoteProtocolError through as if it were a bug."""
+    import httpx
+
+    from pupchat.client import _is_transient
+    assert _is_transient(httpx.RemoteProtocolError("Server disconnected"))
+    assert _is_transient(httpx.ReadTimeout("timed out"))
+    assert _is_transient(Exception("503 UNAVAILABLE: high demand"))
+    assert _is_transient(Exception("429 RESOURCE_EXHAUSTED"))
+
+
+def test_a_real_bug_is_not_retried():
+    """Quietly retrying an auth failure or a malformed request four times turns a
+    clear error into a slow one."""
+    from pupchat.client import _is_transient
+    assert not _is_transient(ValueError("invalid model name"))
+    assert not _is_transient(Exception("401 UNAUTHENTICATED: bad key"))
+
+
+def test_send_with_retry_recovers_from_a_transient_failure():
+    from pupchat.client import send_with_retry
+
+    class Flaky:
+        name = "fake"
+
+        def __init__(self):
+            self.calls = 0
+
+        def send(self, payload, cfg, client=None):
+            self.calls += 1
+            if self.calls < 3:
+                raise Exception("503 UNAVAILABLE high demand")
+            return "ok"
+
+    p = Flaky()
+    out = send_with_retry(p, {}, Config(), base_delay=0.0,
+                          progress=lambda *a, **k: None)
+    assert out == "ok" and p.calls == 3
+
+
+def test_send_with_retry_gives_up_and_raises_the_original():
+    from pupchat.client import send_with_retry
+
+    class Dead:
+        name = "fake"
+
+        def send(self, payload, cfg, client=None):
+            raise Exception("503 UNAVAILABLE")
+
+    with pytest.raises(Exception, match="503"):
+        send_with_retry(Dead(), {}, Config(), attempts=2, base_delay=0.0,
+                        progress=lambda *a, **k: None)

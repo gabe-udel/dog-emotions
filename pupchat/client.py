@@ -83,6 +83,52 @@ def prepare_media(video: Path, provider, cfg: Config, vhash: str, progress=print
     return frames
 
 
+# Matched against the message...
+TRANSIENT = ("503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED", "overloaded",
+             "high demand", "502", "504", "Server disconnected", "Connection reset",
+             "timed out", "Timeout")
+
+# ...and against the exception class name, because a dropped connection carries none of
+# the words above. The first version only matched text and let a RemoteProtocolError
+# through as if it were a bug, which cost a whole run.
+TRANSIENT_TYPES = ("RemoteProtocolError", "ConnectError", "ConnectTimeout",
+                   "ReadTimeout", "ReadError", "WriteError", "PoolTimeout",
+                   "ServerError", "APIConnectionError", "InternalServerError",
+                   "RateLimitError")
+
+
+def _is_transient(e: Exception) -> bool:
+    if type(e).__name__ in TRANSIENT_TYPES:
+        return True
+    msg = str(e)
+    return any(t in msg for t in TRANSIENT)
+
+
+def send_with_retry(provider, payload, cfg, client=None, *, attempts: int = 4,
+                    base_delay: float = 4.0, progress=print):
+    """Retry a transient provider failure, and say so rather than hiding it.
+
+    Free-tier and popular models return 503 "high demand" and 429 often enough that a
+    single attempt is not a usable interface. Only transient classes are retried: an
+    auth failure or a malformed request is a bug, and quietly retrying it four times
+    turns a clear error into a slow one.
+    """
+    last = None
+    for i in range(attempts):
+        try:
+            return provider.send(payload, cfg, client=client)
+        except Exception as e:                       # SDK exception types vary
+            msg = str(e)
+            if not _is_transient(e) or i == attempts - 1:
+                raise
+            last = e
+            delay = base_delay * (2 ** i)
+            progress(f"[{provider.name}] transient error, retrying in {delay:.0f}s "
+                     f"(attempt {i + 2}/{attempts}): {msg[:90]}")
+            time.sleep(delay)
+    raise last                                        # unreachable; kept explicit
+
+
 def estimate_cost(model: str, usage: dict) -> float:
     """USD from the normalised usage dict. NaN for an unpriced model - zero would
     quietly understate a bill."""
@@ -135,7 +181,7 @@ def ask_pupchat(video_path: str | Path, question: str, history: list | None = No
 
     progress(f"[{provider.name}] {settings.model}")
     t0 = time.time()
-    res = provider.send(payload, cfg, client=client)
+    res = send_with_retry(provider, payload, cfg, client=client, progress=progress)
     elapsed = time.time() - t0
 
     if res.truncated:
