@@ -38,12 +38,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import LICENCE_NOTICE, Config, load_env
+from .config import LICENCE_NOTICE, OUT_DIR, Config, load_env
 from .pipeline import analyse, cache_dir, probe, video_hash
 
 WEBAPP = Path(__file__).resolve().parent / "webapp"
 
-UPLOADS = Path(tempfile.gettempdir()) / "pupchat_uploads"
+# Uploads live under outputs/, NOT in the system temp directory.
+#
+# Two reasons, both learned the hard way. tempfile.gettempdir() resolves differently
+# depending on how the process was started, so a clip uploaded by one process was
+# invisible to the server that had to serve it back - /api/video returned 404 for a file
+# that was plainly on disk. And Windows cleans temp, which would silently break playback
+# in chats the browser still lists.
+UPLOADS = OUT_DIR / "uploads"
+
+# Anything already in the old location is still found, so existing chats keep working.
+LEGACY_UPLOADS = Path(tempfile.gettempdir()) / "pupchat_uploads"
 
 
 def _store_upload(name: str, data: bytes) -> Path:
@@ -103,15 +113,29 @@ def check_duration(path: Path, cfg: Config) -> float:
 
 
 def _resolve(video: str | None, vhash: str | None) -> Path:
-    """A request may name an uploaded path or a hash from an earlier analysis."""
+    """A request may name an uploaded path or a hash from an earlier analysis.
+
+    Uploads are stored under their own hash, so the common case is a direct filename
+    lookup rather than hashing every file in the directory - which was O(n) reads per
+    request and grew with every clip ever uploaded.
+    """
     if video:
         p = Path(video)
         if p.exists():
             return p
     if vhash:
-        for p in UPLOADS.glob(f"*"):
-            if video_hash(p) == vhash:
-                return p
+        for folder in (UPLOADS, LEGACY_UPLOADS):
+            if not folder.exists():
+                continue
+            hits = sorted(folder.glob(f"{vhash}.*"))
+            if hits:
+                return hits[0]
+        for folder in (UPLOADS, LEGACY_UPLOADS):      # fallback: renamed by hand
+            if not folder.exists():
+                continue
+            for p in folder.glob("*"):
+                if p.is_file() and video_hash(p) == vhash:
+                    return p
     raise FileNotFoundError(
         "no video for this request: upload it to /api/analyse first, then send its "
         "hash")
@@ -225,6 +249,24 @@ def build_app():
             "frame": frame_trace(kp, rows, idx, cfg.keypoint.pcut),
         })
 
+    @app.get("/api/video/{vhash}")
+    def api_video(vhash: str):
+        """Serve an uploaded clip back, so the page can show what was sent.
+
+        The browser never holds the bytes - a few seconds of H.264 is megabytes against
+        a ~5 MB localStorage quota - so playback streams from the server's upload cache
+        by the same hash the chat already stores. FileResponse handles Range requests,
+        which is what lets a <video> element seek.
+        """
+        try:
+            path = _resolve(None, vhash)
+        except FileNotFoundError:
+            raise HTTPException(404, "no uploaded video with that id")
+        suffix = path.suffix.lower().lstrip(".") or "mp4"
+        mime = {"mov": "video/quicktime", "webm": "video/webm",
+                "avi": "video/x-msvideo"}.get(suffix, "video/mp4")
+        return FileResponse(path, media_type=mime)
+
     @app.get("/api/overlay/{vhash}")
     def api_overlay(vhash: str, force: bool = False):
         """The video with keypoints and the live feature panel drawn on it."""
@@ -262,13 +304,46 @@ def build_app():
     return app
 
 
+PORT = 8000
+
+BUSY_PORT_HELP = """
+  Port {port} is already in use, so Pupchat cannot start.
+
+  Almost always this is an earlier Pupchat window still running. That one
+  answers the browser instead of this one, which means you would be using
+  OLD code: any endpoint added since it started replies "Not Found", and
+  the file it would have served is sitting on disk the whole time.
+
+  Close the other Pupchat window, or stop it from PowerShell:
+
+      Get-NetTCPConnection -LocalPort {port} -State Listen |
+          ForEach-Object {{ Stop-Process -Id $_.OwningProcess -Force }}
+"""
+
+
+def port_is_taken(port: int = PORT, host: str = "127.0.0.1") -> bool:
+    """Is something already listening here?
+
+    Worth checking because uvicorn's failure mode is quiet and actively misleading.
+    It logs "error while attempting to bind" at ERROR level, runs its own shutdown
+    and exits 0 - so the banner still prints, the browser still loads the page, and
+    every request is answered by the other process.
+    """
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(0.5)
+        return s.connect_ex((host, port)) == 0
+
+
 def main() -> None:
     import uvicorn
+    if port_is_taken():
+        raise SystemExit(BUSY_PORT_HELP.format(port=PORT))
     print("=" * 74)
-    print("Pupchat API   http://127.0.0.1:8000     docs: /docs")
+    print(f"Pupchat API   http://127.0.0.1:{PORT}     docs: /docs")
     print(LICENCE_NOTICE)
     print("=" * 74)
-    uvicorn.run(build_app(), host="127.0.0.1", port=8000, log_level="info")
+    uvicorn.run(build_app(), host="127.0.0.1", port=PORT, log_level="info")
 
 
 if __name__ == "__main__":

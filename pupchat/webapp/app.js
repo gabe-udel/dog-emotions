@@ -50,13 +50,16 @@ function newChat() {
 }
 
 function ensureChat(firstQuestion) {
-  if (state.chatId) return currentChat();
+  // currentChat() can be null when chatId points at a chat that was deleted, so this
+  // falls through and creates a fresh one rather than throwing on a null.
+  if (state.chatId && currentChat()) return currentChat();
   const chat = {
     id: uid(),
     title: firstQuestion.slice(0, 48) + (firstQuestion.length > 48 ? "…" : ""),
     dogId: state.activeDogId,
     hash: state.attach ? state.attach.hash : null,
     videoName: state.attach ? state.attach.name : null,
+    duration: state.attach ? state.attach.duration : null,
     messages: [],
     history: null,
     updated: Date.now(),
@@ -201,10 +204,21 @@ function bubble(m) {
   const wrap = document.createElement("div");
   if (m.role === "user") {
     wrap.className = "flex justify-end";
+    // The clip plays from the server by hash. The browser never stored the bytes, so
+    // this is also what makes a chat replayable after a cache clear.
+    const clip = m.hash ? `
+      <div class="rounded-2xl overflow-hidden border border-outline-variant bg-black">
+        <video class="w-full max-h-72 block" controls preload="metadata"
+               src="${API}/api/video/${esc(m.hash)}"></video>
+        <div class="flex items-center gap-2 px-3 py-2 bg-surface-container">
+          <span class="material-symbols-outlined text-[16px] text-outline">movie</span>
+          <span class="font-label-sm text-label-sm text-outline truncate flex-1">${esc(m.videoName || "clip")}</span>
+          ${m.duration ? `<span class="font-label-sm text-label-sm text-outline">${m.duration.toFixed(1)}s</span>` : ""}
+        </div>
+      </div>` : "";
     wrap.innerHTML =
       `<div class="max-w-[85%] space-y-space-sm">
-         ${m.videoName ? `<div class="flex items-center gap-2 justify-end font-label-sm text-label-sm text-outline">
-            <span class="material-symbols-outlined text-[16px]">movie</span>${esc(m.videoName)}</div>` : ""}
+         ${clip}
          <div class="px-4 py-3 rounded-2xl bg-primary text-on-primary font-body-md text-body-md">${esc(m.text)}</div>
        </div>`;
   } else if (m.role === "error") {
@@ -246,6 +260,14 @@ function renderAttach() {
   row.classList.remove("hidden");
   $("attachName").textContent = state.attach.name;
   $("attachState").textContent = state.attach.ready ? "measured" : "measuring…";
+  const prev = $("attachPreview");
+  if (state.attach.hash) {
+    prev.src = `${API}/api/video/${state.attach.hash}`;
+    prev.classList.remove("hidden");
+  } else {
+    prev.removeAttribute("src");
+    prev.classList.add("hidden");
+  }
 }
 
 /* ---------------------------------------------------------------- views */
@@ -302,11 +324,20 @@ function durationOf(file) {
   });
 }
 
+/* Errors are transient UI, NOT conversation.
+ *
+ * The first version routed them through ensureChat(), so "add a clip first" and every
+ * rejected upload silently created a chat titled "(error)" whose only content was that
+ * error. The sidebar filled with chats that had no conversation in them, which reads
+ * exactly like history not being saved. An error is feedback about an action that did
+ * not happen; it has no place in a transcript. */
+let toastTimer = null;
 function toastError(text) {
-  const c = ensureChat("(error)");
-  c.messages.push({ role: "error", text });
-  save(LS_CHATS, state.chats);
-  renderMessages(); renderChats();
+  const el = $("toast");
+  $("toastText").textContent = text;
+  el.classList.remove("hidden");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.add("hidden"), 7000);
 }
 
 /* ---------------------------------------------------------------- send */
@@ -325,11 +356,20 @@ async function send() {
   }
 
   const chat = ensureChat(text);
-  if (!chat.hash && state.attach) { chat.hash = state.attach.hash; chat.videoName = state.attach.name; }
+  if (!chat.hash && state.attach) {
+    chat.hash = state.attach.hash;
+    chat.videoName = state.attach.name;
+    chat.duration = state.attach.duration || null;
+  }
   if (!chat.dogId) chat.dogId = state.activeDogId;
 
-  chat.messages.push({ role: "user", text,
-                       videoName: chat.messages.length ? null : chat.videoName });
+  const first = chat.messages.length === 0;
+  chat.messages.push({
+    role: "user", text,
+    videoName: first ? chat.videoName : null,
+    hash: first ? chat.hash : null,
+    duration: first ? chat.duration : null,
+  });
   chat.updated = Date.now();
   $("composer").value = "";
   autoGrow();
@@ -452,6 +492,7 @@ async function boot() {
   $("plusBtn").onclick = () => $("fileInput").click();
   $("fileInput").onchange = (e) => { pickVideo(e.target.files[0]); e.target.value = ""; };
   $("attachClear").onclick = () => { state.attach = null; renderAttach(); };
+  $("toastClose").onclick = () => $("toast").classList.add("hidden");
   $("sendBtn").onclick = send;
   $("composer").oninput = autoGrow;
   $("composer").onkeydown = (e) => {

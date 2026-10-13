@@ -25,6 +25,17 @@
 </head>
 <body class="bg-surface font-body-md text-on-surface antialiased">
 
+<!-- transient errors. Deliberately NOT part of a chat: an error is feedback about an
+     action that did not happen, and putting it in a transcript made every rejected
+     upload look like a saved conversation. -->
+<div id="toast" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-lg w-[90%]">
+  <div class="flex items-start gap-space-sm px-4 py-3 rounded-xl bg-error-container text-on-error-container border border-error/20 shadow-lg">
+    <span class="material-symbols-outlined text-[20px]">error_outline</span>
+    <span id="toastText" class="font-body-sm text-body-sm flex-1"></span>
+    <button id="toastClose" class="material-symbols-outlined text-[18px] opacity-70 hover:opacity-100">close</button>
+  </div>
+</div>
+
 <!-- ───────────────────────────── sidebar ───────────────────────────── -->
 <aside class="fixed left-0 top-0 h-screen w-72 bg-surface-container-low border-r border-outline-variant z-40 flex flex-col justify-between select-none">
   <div class="flex flex-col h-full overflow-hidden">
@@ -110,11 +121,14 @@
     <!-- composer -->
     <div class="fixed bottom-0 left-72 right-0 bg-gradient-to-t from-surface via-surface to-transparent pt-space-lg pb-space-md px-gutter">
       <div class="max-w-3xl mx-auto">
-        <div id="attachRow" class="hidden mb-space-sm flex items-center gap-space-sm px-3 py-2 rounded-xl bg-surface-container border border-outline-variant">
-          <span class="material-symbols-outlined text-[18px] text-primary">movie</span>
-          <span id="attachName" class="font-body-sm text-body-sm truncate flex-1"></span>
-          <span id="attachState" class="font-label-sm text-label-sm text-outline"></span>
-          <button id="attachClear" class="material-symbols-outlined text-[18px] text-outline hover:text-error">close</button>
+        <div id="attachRow" class="hidden mb-space-sm rounded-xl bg-surface-container border border-outline-variant overflow-hidden">
+          <video id="attachPreview" class="hidden w-full max-h-48 bg-black block" controls preload="metadata"></video>
+          <div class="flex items-center gap-space-sm px-3 py-2">
+            <span class="material-symbols-outlined text-[18px] text-primary">movie</span>
+            <span id="attachName" class="font-body-sm text-body-sm truncate flex-1"></span>
+            <span id="attachState" class="font-label-sm text-label-sm text-outline"></span>
+            <button id="attachClear" class="material-symbols-outlined text-[18px] text-outline hover:text-error">close</button>
+          </div>
         </div>
 
         <div class="flex items-end gap-space-sm p-2 rounded-2xl bg-surface-container-lowest border border-outline-variant shadow-sm">

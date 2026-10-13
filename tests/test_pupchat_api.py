@@ -8,6 +8,7 @@ one that actually bit - JSON that a strict parser will accept.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 import math
 
 import pytest
@@ -191,3 +192,73 @@ def test_no_key_reaches_the_browser(client):
 def test_api_routes_win_over_static_files(client):
     """The static mount is at /, so it must be added last or it would shadow /api/*."""
     assert client.get("/api/health").json()["ok"] is True
+
+
+# ------------------------------------------------------------------ video playback
+
+def test_an_uploaded_clip_can_be_played_back(client):
+    """The browser never holds the bytes, so showing the user what they sent means
+    streaming it from the server by the hash the chat already stores."""
+    r = client.get("/api/video/ab65fb44eb3a3f0d")
+    if r.status_code == 404:
+        pytest.skip("that clip is not in this machine's upload cache")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("video/")
+    assert len(r.content) > 1000
+
+
+def test_an_unknown_video_id_is_a_404(client):
+    assert client.get("/api/video/deadbeefdeadbeef").status_code == 404
+
+
+# ------------------------------------------------------------------ page wiring
+
+def test_errors_do_not_become_chats():
+    """The reported bug: toastError() routed through ensureChat(), so every rejected
+    upload created a chat titled "(error)" with no conversation in it - which reads
+    exactly like chat history not being saved."""
+    js = (Path(__file__).resolve().parent.parent
+          / "pupchat" / "webapp" / "app.js").read_text(encoding="utf-8")
+    assert 'ensureChat("(error)")' not in js
+    assert "function toastError" in js
+    assert 'getElementById' in js or '$("toast")' in js
+
+
+def test_the_page_has_a_toast_and_a_video_preview():
+    html = (Path(__file__).resolve().parent.parent
+            / "pupchat" / "webapp" / "index.html").read_text(encoding="utf-8")
+    assert 'id="toast"' in html
+    assert 'id="attachPreview"' in html
+    assert "<video" in html
+
+
+def test_the_chat_bubble_streams_the_clip_rather_than_storing_it():
+    js = (Path(__file__).resolve().parent.parent
+          / "pupchat" / "webapp" / "app.js").read_text(encoding="utf-8")
+    assert "/api/video/" in js
+    # a data: URL here would mean the bytes went into localStorage, which is a ~5 MB
+    # quota against a multi-megabyte clip
+    assert "data:video" not in js
+
+
+# ------------------------------------------------------------------ startup
+
+def test_a_busy_port_stops_the_server_instead_of_shadowing_it(monkeypatch):
+    """uvicorn's own behaviour here is to log the bind failure and exit 0, leaving the
+    OTHER process answering the browser. When that one is an older build it serves
+    stale code, and a missing endpoint looks like a backend bug rather than a second
+    server. Refusing to start is the only honest outcome."""
+    import pupchat.api as A
+
+    monkeypatch.setattr(A, "port_is_taken", lambda *a, **k: True)
+    monkeypatch.setattr(A, "build_app", lambda: pytest.fail("must not reach uvicorn"))
+    with pytest.raises(SystemExit) as e:
+        A.main()
+    msg = str(e.value).lower()
+    assert "already in use" in msg
+    assert "old code" in msg          # names the consequence, not just the symptom
+
+
+def test_port_check_reports_a_free_port_as_free():
+    from pupchat.api import port_is_taken
+    assert port_is_taken(port=1, host="127.0.0.1") is False
