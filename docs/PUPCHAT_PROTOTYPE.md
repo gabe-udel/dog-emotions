@@ -343,7 +343,84 @@ un_video.py --video "<file>" `
 
 ---
 
-## 13. Verified live
+## 13. Driving it from your own front end
+
+Google Stitch exports a **front end only** - HTML/CSS, Tailwind, Vue, Angular, Flutter
+or SwiftUI. It generates no server, so a Stitch design has nothing to call until the
+pipeline is exposed over HTTP. That is what `pupchat/api.py` is for.
+
+```powershell
+.venv\Scripts\python.exe -m pupchat.api        # http://127.0.0.1:8000, docs at /docs
+```
+
+| endpoint | purpose |
+|---|---|
+| `POST /api/analyse` | upload a clip, measure it, get the evidence. Minutes the first time, instant after - cached by the file's own hash |
+| `POST /api/ask` | question about an analysed clip; pass back `history` for follow-ups that re-measure nothing |
+| `GET /api/evidence/{hash}` | the evidence text and the full JSON |
+| `GET /api/track/{hash}` | per-frame feature values with timestamps, for scrubbing alongside the video |
+| `GET /api/trace/{hash}?frame=N` | keypoint confidences joined to feature values: why something is missing |
+| `GET /api/overlay/{hash}` | the video with keypoints and a live feature panel drawn on it |
+| `POST /api/flag` / `GET /api/flags` | flagged answers |
+
+Two things worth knowing when wiring a front end to it:
+
+**CORS is wide open.** A Stitch export opened from the filesystem or served on another
+port is a different origin, and a silent CORS failure looks like a broken backend. Safe
+only because this is a local prototype that must not be deployed.
+
+**NaN is converted to `null` at the boundary.** Python writes bare `NaN` happily;
+Starlette and every strict JSON parser refuse it. A missing measurement is genuinely
+null, and `null` is something a front end can test for.
+
+### Seeing the maths on the video
+
+`GET /api/overlay/{hash}` renders the keypoints plus a live feature readout onto the
+cached frames - the same `draw.Renderer` and `draw.feature_panel` the research pipeline
+uses, so the two cannot disagree. It redraws from the cache rather than re-running the
+cascade, so it costs seconds rather than minutes.
+
+Pair it with `GET /api/track/{hash}` to drive a scrubber: that returns every feature's
+value per frame with timestamps, so a UI can show the numbers moving against the video
+without re-rendering anything.
+
+---
+
+## 14. Proving accuracy on YOUR footage
+
+Every accuracy figure in this project was measured on DogFLW and StanfordExtra stills.
+That is the right baseline and **it does not transfer**: `mouth_open_jaw` runs at 94%
+coverage on DogFLW stills and 10% on one of these videos. A number measured on someone
+else's photographs is not a claim about your camera, breed, lighting or framing.
+
+`pupchat/groundtruth.py` applies the project's own method to your clips:
+
+1. **Sample frames evenly** - `sample_indices()`. Not chosen by eye: picking the frames
+   where the dog looks clear measures the easy cases, which is the bias that makes an
+   accuracy number flattering. Deterministic, so a second session covers the same frames.
+2. **Label them by hand**, with the model's prediction never drawn. Showing the guess
+   for the point being labelled anchors the click to it, and the run then measures
+   agreement rather than accuracy - the same rule `src/label_withers.py` follows.
+3. **Difference predicted against labelled** - `score_keypoints()`. Normalised by the
+   per-frame box diagonal, so the numbers sit beside `evaluate_face` and
+   `check_body_accuracy` rather than needing translation.
+4. **Recompute the features from both sets of keypoints** - `score_features()`.
+
+**Step 4 is the one people skip, and it is the one that matters.** A 3 px keypoint error
+tells you nothing about `ear_angle` until you measure it, and the relationship is not
+proportional: a feature built as a difference between two nearby landmarks cancels most
+of a shared error, while a ratio with a small denominator amplifies it. A test pins
+exactly that - the same shared 5 px shift produces 0.0 error in a difference feature and
+2.5 in a ratio.
+
+`compare_to_dogflw()` then puts your error beside the published one per feature. A ratio
+well above 1 means the DogFLW figure does not describe your footage, and anything built
+on it - the SNR tiers, the timestamp eligibility, the noise floors - needs rechecking
+against the local number.
+
+---
+
+## 15. Verified live
 
 **Gemini, 2026-10-11**, `videos/whie pom sample 15.mp4` (7.5 s), `gemini-3.8-flash`:
 
