@@ -357,7 +357,44 @@ un_video.py --video "<file>" `
 
 ---
 
-## 13. Driving it from your own front end
+## 13. The web app
+
+**Double-click `Pupchat Web App.bat`** - it starts the server and opens
+<http://127.0.0.1:8000>.
+
+The front end is built from the Google Stitch design in
+`outputs/pupchat/pupchat app/`: its Tailwind token block (47 colours, the type scale,
+the spacing scale) and its layout are reused verbatim, with the hard-coded demo content
+replaced by state. Stitch exports three separate static pages with no JavaScript, so the
+markup is rebuilt as one app rather than patched - a patched export breaks the moment
+Stitch regenerates it.
+
+| what | where it lives |
+|---|---|
+| chats, titles, messages, search index | browser `localStorage` |
+| dog profiles and baseline clip ids | browser `localStorage` |
+| video bytes, keypoints, evidence | server cache, keyed by file hash |
+| the API key | `.env` on the server, never sent to the page |
+
+Videos are deliberately NOT in `localStorage`: a few seconds of H.264 is megabytes
+against a ~5 MB quota. The browser keeps the hash the server returned, so a clip survives
+a cache clear and an already-measured clip is never measured twice.
+
+**Clips must be 5-10 seconds.** Checked in the browser first for instant feedback and
+again on the server, because a browser check is a convenience and not a guarantee -
+anything can POST to the endpoint. The rule is a product decision rather than a
+technical limit: under 5 s there are too few frames for a rate or an oscillation to mean
+anything, and over 10 s the keypoint pass stops being interactive on CPU.
+
+**The dog profile is sent with every question**, as prose, ahead of the evidence. No
+prompt change was needed - the system prompt already lists "sometimes, a profile of the
+dog" among its inputs, so this is a parameter, not an edit. Empty fields are omitted
+rather than sent blank, so the model is never handed `Health: ` and left to guess
+whether that means healthy or unknown.
+
+---
+
+## 14. Driving it from your own front end
 
 Google Stitch exports a **front end only** - HTML/CSS, Tailwind, Vue, Angular, Flutter
 or SwiftUI. It generates no server, so a Stitch design has nothing to call until the
@@ -400,7 +437,7 @@ without re-rendering anything.
 
 ---
 
-## 14. Proving accuracy on YOUR footage
+## 15. Proving accuracy on YOUR footage
 
 Every accuracy figure in this project was measured on DogFLW and StanfordExtra stills.
 That is the right baseline and **it does not transfer**: `mouth_open_jaw` runs at 94%
@@ -434,7 +471,7 @@ against the local number.
 
 ---
 
-## 15. Verified live
+## 16. Verified live
 
 **Gemini, 2026-10-11**, `videos/whie pom sample 15.mp4` (7.5 s), `gemini-3.8-flash`:
 

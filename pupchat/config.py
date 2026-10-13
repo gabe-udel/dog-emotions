@@ -82,6 +82,23 @@ class KeypointConfig:
 
 
 @dataclass(frozen=True)
+class UploadConfig:
+    """Limits on what a clip may be.
+
+    The length window is a product rule, not a technical one: under 5 s there are too
+    few frames for a rate or an oscillation to mean anything, and over 10 s the
+    keypoint pass stops being interactive on CPU. Enforced on the server as well as in
+    the page, because a browser check is a convenience and not a guarantee.
+    """
+
+    min_seconds: float = 5.0
+    max_seconds: float = 10.0
+    max_bytes: int = 80 * 1024 * 1024
+    tolerance_s: float = 0.25
+    """Container durations are approximate; a 5.0 s clip often reports 4.97."""
+
+
+@dataclass(frozen=True)
 class SmoothingConfig:
     """One Euro over keypoint tracks, before features are computed.
 
@@ -243,6 +260,7 @@ class Config:
     keypoint: KeypointConfig = field(default_factory=KeypointConfig)
     evidence: EvidenceConfig = field(default_factory=EvidenceConfig)
     smoothing: SmoothingConfig = field(default_factory=SmoothingConfig)
+    upload: UploadConfig = field(default_factory=UploadConfig)
     spikes: SpikeConfig = field(default_factory=SpikeConfig)
     stillness: StillnessConfig = field(default_factory=StillnessConfig)
     openai: ProviderSettings = field(default_factory=_openai_settings)

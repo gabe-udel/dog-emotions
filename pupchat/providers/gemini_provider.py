@@ -58,8 +58,8 @@ class GeminiProvider(Provider):
     media_kind = MEDIA_VIDEO
 
     def build_request(self, evidence_text, question, media, cfg,
-                      history=None) -> dict:
-        """`media` is the video path. Order matches OpenAI: evidence, media, question."""
+                      history=None, profile=None) -> dict:
+        """`media` is the video path. Order: profile, evidence, media, question."""
         video = Path(media)
         size = video.stat().st_size
         mime = mime_for(video)
@@ -74,14 +74,14 @@ class GeminiProvider(Provider):
             part = {"file_upload": {"path": str(video), "mime_type": mime,
                                     "bytes": size}}
 
-        contents: list[dict] = [{
-            "role": "user",
-            "parts": [
-                {"text": "Automated measurements from this video:\n\n" + evidence_text},
-                part,
-                {"text": f"The owner asks: {question}"},
-            ],
-        }]
+        parts: list[dict] = []
+        if profile:
+            parts.append({"text": profile})
+        parts.append({"text": "Automated measurements from this video:\n\n"
+                              + evidence_text})
+        parts.append(part)
+        parts.append({"text": f"The owner asks: {question}"})
+        contents: list[dict] = [{"role": "user", "parts": parts}]
 
         if history:
             contents[0]["parts"] = contents[0]["parts"][:-1]

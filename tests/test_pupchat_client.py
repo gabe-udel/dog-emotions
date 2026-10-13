@@ -477,3 +477,56 @@ def test_send_with_retry_gives_up_and_raises_the_original():
     with pytest.raises(Exception, match="503"):
         send_with_retry(Dead(), {}, Config(), attempts=2, base_delay=0.0,
                         progress=lambda *a, **k: None)
+
+
+# --------------------------------------------------------------- dog profile
+
+PROFILE = ("Dog profile: Milo, Golden Retriever Mix, 3 years. "
+           "Known triggers: doorbell, delivery trucks.")
+
+
+@pytest.mark.parametrize("name", ["openai", "gemini"])
+def test_the_profile_reaches_the_request(cfg, video, name):
+    """A signature that accepts `profile` while the body ignores it is the exact
+    failure this pins: it type-checks, it runs, and the dog's name never arrives."""
+    media = FRAMES if name == "openai" else video
+    p = get_provider(name).build_request(EVIDENCE, QUESTION, media, cfg,
+                                         profile=PROFILE)
+    blob = json.dumps(p)
+    assert "Milo" in blob and "delivery trucks" in blob
+
+
+@pytest.mark.parametrize("name", ["openai", "gemini"])
+def test_the_profile_comes_before_the_evidence_and_question(cfg, video, name):
+    media = FRAMES if name == "openai" else video
+    p = get_provider(name).build_request(EVIDENCE, QUESTION, media, cfg,
+                                         profile=PROFILE)
+    texts = ([c.get("text", "") for c in p["input"][0]["content"]]
+             if name == "openai"
+             else [c.get("text", "") for c in p["contents"][0]["parts"]])
+    joined = [t for t in texts if t]
+    assert joined[0] == PROFILE
+    assert EVIDENCE in joined[1]
+    assert joined[-1].endswith(QUESTION)
+
+
+@pytest.mark.parametrize("name", ["openai", "gemini"])
+def test_no_profile_changes_nothing(cfg, video, name):
+    """Profiles are optional; a request without one must look exactly as before."""
+    media = FRAMES if name == "openai" else video
+    prov = get_provider(name)
+    assert prov.build_request(EVIDENCE, QUESTION, media, cfg) == \
+        prov.build_request(EVIDENCE, QUESTION, media, cfg, profile=None)
+
+
+@pytest.mark.parametrize("name", ["openai", "gemini"])
+def test_the_system_prompt_is_unchanged_by_a_profile(cfg, video, name):
+    """The prompt already lists a dog profile among its inputs, so passing one must
+    not require editing it."""
+    media = FRAMES if name == "openai" else video
+    p = get_provider(name).build_request(EVIDENCE, QUESTION, media, cfg,
+                                         profile=PROFILE)
+    prompt = (p["instructions"] if name == "openai"
+              else p["config"]["system_instruction"])
+    assert prompt == C.system_prompt()
+    assert "profile of the dog" in prompt

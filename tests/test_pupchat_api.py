@@ -110,3 +110,84 @@ def test_different_bytes_get_different_files():
     a = _store_upload("clip.mp4", b"one")
     b = _store_upload("clip.mp4", b"two")
     assert a != b
+
+
+# ------------------------------------------------------------------ upload limits
+
+def test_health_publishes_the_clip_length_window(client):
+    """The page reads these rather than hard-coding 5 and 10, so one config change
+    moves both the browser check and the server check."""
+    u = client.get("/api/health").json()["upload"]
+    assert u["min_seconds"] == 5.0 and u["max_seconds"] == 10.0
+
+
+def test_health_says_whether_a_key_exists_but_never_what_it_is(client):
+    """The page needs to know it can ask a question. It must never learn the secret."""
+    body = client.get("/api/health").text
+    assert "key_configured" in body
+    assert "AIza" not in body and "sk-" not in body
+
+
+@pytest.mark.parametrize("duration,expect", [(3.1, "too few frames"),
+                                             (12.2, "too long to measure")])
+def test_duration_gate_explains_which_way_it_failed(tmp_path, duration, expect,
+                                                    monkeypatch):
+    """A bare 'invalid video' tells the owner nothing about how to fix it."""
+    import pupchat.api as A
+    from pupchat.config import Config
+
+    monkeypatch.setattr(A, "probe", lambda p: (30.0, int(duration * 30), duration))
+    f = tmp_path / "clip.mp4"
+    f.write_bytes(b"\x00")
+    with pytest.raises(ValueError) as e:
+        A.check_duration(f, Config())
+    assert expect in str(e.value)
+    assert f"{duration:.1f}s" in str(e.value)
+
+
+def test_a_clip_inside_the_window_passes(tmp_path, monkeypatch):
+    import pupchat.api as A
+    from pupchat.config import Config
+
+    monkeypatch.setattr(A, "probe", lambda p: (30.0, 210, 7.0))
+    f = tmp_path / "clip.mp4"
+    f.write_bytes(b"\x00")
+    assert A.check_duration(f, Config()) == 7.0
+
+
+def test_the_boundaries_are_tolerant_of_container_rounding(tmp_path, monkeypatch):
+    """A clip trimmed to 5.0s routinely reports 4.97, and rejecting it would be
+    indistinguishable from a bug to whoever trimmed it."""
+    import pupchat.api as A
+    from pupchat.config import Config
+
+    for d in (4.9, 10.1):
+        monkeypatch.setattr(A, "probe", lambda p, d=d: (30.0, int(d * 30), d))
+        f = tmp_path / "clip.mp4"
+        f.write_bytes(b"\x00")
+        assert A.check_duration(f, Config()) == d
+
+
+# ------------------------------------------------------------------ the page
+
+def test_the_page_is_served_at_the_root(client):
+    r = client.get("/")
+    assert r.status_code == 200
+    assert "Pupchat" in r.text
+    assert "app.js" in r.text
+
+
+def test_the_page_script_is_served(client):
+    assert client.get("/app.js").status_code == 200
+
+
+def test_no_key_reaches_the_browser(client):
+    """The whole reason the API exists rather than calling Gemini from the page."""
+    blob = client.get("/").text + client.get("/app.js").text
+    for marker in ("AIzaSy", "sk-", "GEMINI_API_KEY=", "OPENAI_API_KEY="):
+        assert marker not in blob, marker
+
+
+def test_api_routes_win_over_static_files(client):
+    """The static mount is at /, so it must be added last or it would shadow /api/*."""
+    assert client.get("/api/health").json()["ok"] is True

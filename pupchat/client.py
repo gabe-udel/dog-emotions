@@ -154,7 +154,8 @@ def log_usage(entry: dict, path: Path | None = None) -> None:
 
 def ask_pupchat(video_path: str | Path, question: str, history: list | None = None,
                 cfg: Config | None = None, *, progress=print,
-                show_request: bool = False, client=None) -> dict:
+                show_request: bool = False, client=None,
+                profile: str | None = None) -> dict:
     """video + question -> answer, through whichever provider cfg selects.
 
     `client` is injectable so tests mock the API without a key and without spending.
@@ -170,7 +171,8 @@ def ask_pupchat(video_path: str | Path, question: str, history: list | None = No
     vhash = result["hash"]
 
     media = prepare_media(video_path, provider, cfg, vhash, progress)
-    payload = provider.build_request(evidence_text, question, media, cfg, history)
+    payload = provider.build_request(evidence_text, question, media, cfg, history,
+                                     profile=profile)
     redacted = provider.redact(payload)
 
     if show_request:

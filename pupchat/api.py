@@ -19,12 +19,29 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import tempfile
+
+
+def os_getenv(name: str) -> str:
+    """Whether a key is present - never the key itself. The page needs to know it can
+    ask a question; it must never learn the secret."""
+    return os.getenv(name, "").strip()
 from pathlib import Path
 
+# Module scope, not inside build_app: `from __future__ import annotations` turns the
+# endpoint annotations into strings, and FastAPI resolves them against module globals.
+# Imported locally they are invisible there, and UploadFile fails to resolve at runtime.
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+
 from .config import LICENCE_NOTICE, Config, load_env
-from .pipeline import analyse, cache_dir, video_hash
+from .pipeline import analyse, cache_dir, probe, video_hash
+
+WEBAPP = Path(__file__).resolve().parent / "webapp"
 
 UPLOADS = Path(tempfile.gettempdir()) / "pupchat_uploads"
 
@@ -59,6 +76,32 @@ def json_safe(obj):
     return obj
 
 
+def check_duration(path: Path, cfg: Config) -> float:
+    """Enforce the clip-length window server-side. Returns the duration.
+
+    The page checks this too, for instant feedback, but a browser check is a
+    convenience and not a guarantee - anything can POST to this endpoint.
+    """
+    u = cfg.upload
+    try:
+        _, _, duration = probe(path)
+    except SystemExit as e:
+        raise ValueError(f"could not read that video: {e}")
+    if duration <= 0:
+        raise ValueError("could not read the length of that video")
+    if duration < u.min_seconds - u.tolerance_s:
+        raise ValueError(
+            f"that clip is {duration:.1f}s. Pupchat needs {u.min_seconds:g}-"
+            f"{u.max_seconds:g}s: shorter than {u.min_seconds:g}s has too few frames "
+            f"for movement to be measurable.")
+    if duration > u.max_seconds + u.tolerance_s:
+        raise ValueError(
+            f"that clip is {duration:.1f}s. Pupchat needs {u.min_seconds:g}-"
+            f"{u.max_seconds:g}s: longer clips take too long to measure on CPU. "
+            f"Trim it to the moment you want to ask about.")
+    return duration
+
+
 def _resolve(video: str | None, vhash: str | None) -> Path:
     """A request may name an uploaded path or a hash from an earlier analysis."""
     if video:
@@ -75,10 +118,6 @@ def _resolve(video: str | None, vhash: str | None) -> Path:
 
 
 def build_app():
-    from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-    from fastapi.middleware.cors import CORSMiddleware
-    from fastapi.responses import FileResponse, JSONResponse
-
     load_env()
     app = FastAPI(title="Pupchat API", version="0.1",
                   description=LICENCE_NOTICE)
@@ -89,16 +128,31 @@ def build_app():
     def health():
         cfg = Config()
         return {"ok": True, "provider": cfg.provider, "model": cfg.active.model,
-                "licence": LICENCE_NOTICE}
+                "licence": LICENCE_NOTICE,
+                "upload": {"min_seconds": cfg.upload.min_seconds,
+                           "max_seconds": cfg.upload.max_seconds,
+                           "max_bytes": cfg.upload.max_bytes},
+                "key_configured": bool(os_getenv(cfg.active.key_env))}
 
     @app.post("/api/analyse")
     async def api_analyse(file: UploadFile = File(...)):
         """Upload a clip, measure it, get the evidence. Minutes of CPU the first time,
         instant afterwards - the result is cached by the file's own hash."""
-        path = _store_upload(file.filename or "clip.mp4", await file.read())
-        res = analyse(path, Config(), progress=lambda *a, **k: None)
+        cfg = Config()
+        data = await file.read()
+        if len(data) > cfg.upload.max_bytes:
+            raise HTTPException(413, f"that file is "
+                                     f"{len(data) / 1e6:.0f} MB; the limit is "
+                                     f"{cfg.upload.max_bytes / 1e6:.0f} MB")
+        path = _store_upload(file.filename or "clip.mp4", data)
+        try:
+            duration = check_duration(path, cfg)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        res = analyse(path, cfg, progress=lambda *a, **k: None)
         return json_safe({
             "hash": res["hash"],
+            "duration_s": round(duration, 2),
             "cached": res["cached"],
             "meta": res["meta"],
             "evidence_text": res["evidence_text"],
@@ -107,7 +161,8 @@ def build_app():
 
     @app.post("/api/ask")
     async def api_ask(question: str = Form(...), hash: str = Form(None),
-                      video: str = Form(None), history: str = Form(None)):
+                      video: str = Form(None), history: str = Form(None),
+                      profile: str = Form(None)):
         """Ask about an already-analysed clip. `history` is the JSON list returned by
         the previous call, so follow-ups cost no re-measurement."""
         from .client import ask_pupchat
@@ -118,7 +173,8 @@ def build_app():
         turns = json.loads(history) if history else None
         try:
             res = ask_pupchat(path, question, history=turns, cfg=Config(),
-                              progress=lambda *a, **k: None)
+                              progress=lambda *a, **k: None,
+                              profile=profile or None)
         except SystemExit as e:                      # missing key, bad provider
             raise HTTPException(status_code=503, detail=str(e))
         return json_safe({
@@ -198,6 +254,10 @@ def build_app():
     def api_flags():
         from .feedback import load_flags
         return {"flags": load_flags()}
+
+    # The front end last, so /api/* always wins over a file of the same name.
+    if WEBAPP.exists():
+        app.mount("/", StaticFiles(directory=str(WEBAPP), html=True), name="webapp")
 
     return app
 

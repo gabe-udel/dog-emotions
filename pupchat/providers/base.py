@@ -46,8 +46,15 @@ class Provider(abc.ABC):
 
     @abc.abstractmethod
     def build_request(self, evidence_text: str, question: str, media,
-                      cfg, history: list | None = None) -> dict:
-        """Assemble the provider's payload. Question LAST, always."""
+                      cfg, history: list | None = None,
+                      profile: str | None = None) -> dict:
+        """Assemble the provider's payload.
+
+        Order inside the user turn: profile, evidence, media, question LAST. The system
+        prompt already lists a dog profile among the inputs it may receive, so passing
+        one needs no prompt change - which is why this is a parameter and not a prompt
+        edit.
+        """
 
     @abc.abstractmethod
     def send(self, payload: dict, cfg, client=None) -> ProviderResult:

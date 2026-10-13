@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Pupchat</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<style>
+@layer base{html,body{margin:0;padding:0}body{overscroll-behavior:none}}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:#cfc5bb;border-radius:4px}
+.md{white-space:pre-wrap}
+.md strong{font-weight:700;color:#1d1b19}
+.md h3{font-weight:700;margin:1rem 0 .25rem;color:#1d1b19}
+.md ul{margin:.25rem 0 .5rem 1.1rem}
+.md li{margin:.15rem 0}
+.md ol{margin:.25rem 0 .5rem 1.3rem}
+@keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+.dot{animation:blink 1.4s infinite}.dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+</style>
+<script src="https://cdn.tailwindcss.com"></script>
+<script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"primary-fixed":"#eee0d1","on-error":"#ffffff","tertiary-fixed":"#dfe3e9","surface":"#fef8f3","tertiary-container":"#71757b","error":"#ba1a1a","on-tertiary-fixed-variant":"#43474d","secondary-container":"#ebdecf","surface-container-low":"#f8f3ee","secondary-fixed":"#eee0d2","error-container":"#ffdad6","on-tertiary":"#ffffff","tertiary":"#585c62","surface-container-highest":"#e7e1dd","on-primary":"#ffffff","on-secondary":"#ffffff","on-primary-fixed-variant":"#4e453a","on-secondary-fixed-variant":"#4e453b","surface-tint":"#675d51","surface-dim":"#ded9d4","primary-container":"#7d7366","on-secondary-fixed":"#211b12","on-primary-fixed":"#211a11","outline-variant":"#cfc5bb","on-tertiary-container":"#fdfcff","tertiary-fixed-dim":"#c3c7cd","primary":"#645a4f","background":"#fef8f3","on-secondary-container":"#6b6155","primary-fixed-dim":"#d2c4b6","inverse-primary":"#d2c4b6","surface-bright":"#fef8f3","inverse-on-surface":"#f5f0eb","on-primary-container":"#fffbff","on-surface":"#1d1b19","surface-variant":"#e7e1dd","surface-container":"#f3ede8","on-tertiary-fixed":"#181c21","inverse-surface":"#32302d","surface-container-high":"#ede7e2","on-background":"#1d1b19","on-surface-variant":"#4c463e","secondary-fixed-dim":"#d1c4b6","outline":"#7e766d","secondary":"#665d51","surface-container-lowest":"#ffffff","on-error-container":"#93000a"},borderRadius:{DEFAULT:"0.25rem",lg:"0.5rem",xl:"0.75rem",full:"9999px"},spacing:{"gutter":"1.5rem","space-lg":"1.5rem","space-md":"1rem","margin-mobile":"1rem","space-xs":"0.25rem","space-xl":"2.5rem","margin":"2rem","gutter-mobile":"1rem","space-sm":"0.5rem"},fontFamily:{"headline-sm":["Plus Jakarta Sans"],"label-md":["Plus Jakarta Sans"],"headline-lg":["Plus Jakarta Sans"],"body-md":["Plus Jakarta Sans"],"body-lg":["Plus Jakarta Sans"],"body-sm":["Plus Jakarta Sans"],"headline-md":["Plus Jakarta Sans"],"display-lg":["Plus Jakarta Sans"],"label-lg":["Plus Jakarta Sans"],"label-sm":["Plus Jakarta Sans"]},fontSize:{"headline-sm":["18px",{lineHeight:"26px",letterSpacing:"0em",fontWeight:"600"}],"label-md":["13px",{lineHeight:"18px",letterSpacing:"0.02em",fontWeight:"500"}],"headline-lg":["28px",{lineHeight:"36px",letterSpacing:"-0.015em",fontWeight:"600"}],"body-md":["16px",{lineHeight:"26px",letterSpacing:"0.01em",fontWeight:"400"}],"body-lg":["18px",{lineHeight:"28px",letterSpacing:"0.01em",fontWeight:"400"}],"body-sm":["14px",{lineHeight:"22px",letterSpacing:"0.01em",fontWeight:"400"}],"headline-md":["22px",{lineHeight:"30px",letterSpacing:"-0.01em",fontWeight:"600"}],"display-lg":["36px",{lineHeight:"44px",letterSpacing:"-0.02em",fontWeight:"600"}],"label-lg":["14px",{lineHeight:"20px",letterSpacing:"0.02em",fontWeight:"600"}],"label-sm":["11px",{lineHeight:"16px",letterSpacing:"0.04em",fontWeight:"600"}]}}}};</script>
+</head>
+<body class="bg-surface font-body-md text-on-surface antialiased">
+
+<!-- ───────────────────────────── sidebar ───────────────────────────── -->
+<aside class="fixed left-0 top-0 h-screen w-72 bg-surface-container-low border-r border-outline-variant z-40 flex flex-col justify-between select-none">
+  <div class="flex flex-col h-full overflow-hidden">
+
+    <div class="p-space-md border-b border-outline-variant/60 flex items-center justify-between gap-space-sm">
+      <div class="flex items-center gap-space-sm">
+        <span class="material-symbols-outlined text-primary">pets</span>
+        <span class="font-headline-sm text-headline-sm tracking-tight">Pupchat</span>
+      </div>
+      <button id="newChat" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-on-primary font-label-md text-label-md hover:bg-primary-container transition-colors shadow-sm">
+        <span class="material-symbols-outlined text-[16px]">edit_square</span><span>New</span>
+      </button>
+    </div>
+
+    <div class="px-space-md pt-space-md pb-space-sm">
+      <div class="relative flex items-center w-full">
+        <span class="material-symbols-outlined absolute left-3 text-outline text-[18px]">search</span>
+        <input id="search" placeholder="Search chats..." type="text"
+               class="w-full pl-9 pr-3 py-2 rounded-lg bg-surface-container-lowest border border-outline-variant font-body-sm text-body-sm placeholder:text-outline focus:outline-none focus:border-primary transition-all"/>
+      </div>
+    </div>
+
+    <div class="flex-1 overflow-y-auto px-space-md py-space-sm space-y-space-lg">
+      <section>
+        <div class="flex items-center justify-between mb-space-sm px-1">
+          <span class="font-label-sm text-label-sm uppercase tracking-wider text-outline font-semibold">My Dogs</span>
+          <button id="addDog" class="inline-flex items-center gap-1 font-label-sm text-label-sm text-primary hover:text-on-surface transition-colors">
+            <span class="material-symbols-outlined text-[14px]">add</span>Add
+          </button>
+        </div>
+        <nav id="dogList" class="space-y-1"></nav>
+      </section>
+
+      <section>
+        <div class="mb-space-sm px-1">
+          <span class="font-label-sm text-label-sm uppercase tracking-wider text-outline font-semibold">Recent Chats</span>
+        </div>
+        <nav id="chatList" class="space-y-1"></nav>
+        <p id="noChats" class="px-3 py-2 font-body-sm text-body-sm text-outline">No chats yet.</p>
+      </section>
+    </div>
+
+    <div class="p-space-md border-t border-outline-variant/60 bg-surface-container-low">
+      <div class="flex items-center gap-2 font-label-sm text-label-sm text-outline">
+        <span id="healthDot" class="w-2 h-2 rounded-full bg-outline"></span>
+        <span id="healthText" class="truncate">connecting…</span>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- ───────────────────────────── main ───────────────────────────── -->
+<div class="pl-72 min-h-screen bg-surface">
+
+  <header class="fixed top-0 left-72 right-0 h-16 bg-surface/90 backdrop-blur-md border-b border-outline-variant/50 z-30 flex items-center justify-between px-space-lg">
+    <div class="flex items-center gap-space-md">
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-container-lowest border border-outline-variant shadow-sm">
+        <span class="w-2 h-2 rounded-full bg-primary"></span>
+        <span class="font-label-md text-label-md">Chatting about: <strong id="activeDogName" class="text-primary font-semibold">no dog selected</strong></span>
+      </div>
+      <button id="openProfile" class="hidden sm:inline-flex items-center gap-1 font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors">
+        <span class="material-symbols-outlined text-[16px]">pets</span><span>Profile</span>
+      </button>
+    </div>
+    <div class="font-label-sm text-label-sm text-outline" id="modelBadge"></div>
+  </header>
+
+  <!-- ── chat view ── -->
+  <main id="chatView" class="relative pt-16 min-h-[calc(100vh-4rem)] w-full">
+    <div class="max-w-3xl mx-auto px-gutter pb-48 pt-space-lg">
+      <div id="messages" class="space-y-space-lg"></div>
+
+      <div id="emptyState" class="text-center py-space-xl">
+        <span class="material-symbols-outlined text-[48px] text-outline-variant">pets</span>
+        <h2 class="font-headline-md text-headline-md mt-space-sm">Ask about your dog</h2>
+        <p class="font-body-sm text-body-sm text-outline mt-space-xs max-w-md mx-auto">
+          Add a 5–10 second clip with the + button, then ask a question.
+          The first clip takes a few minutes to measure.
+        </p>
+      </div>
+    </div>
+
+    <!-- composer -->
+    <div class="fixed bottom-0 left-72 right-0 bg-gradient-to-t from-surface via-surface to-transparent pt-space-lg pb-space-md px-gutter">
+      <div class="max-w-3xl mx-auto">
+        <div id="attachRow" class="hidden mb-space-sm flex items-center gap-space-sm px-3 py-2 rounded-xl bg-surface-container border border-outline-variant">
+          <span class="material-symbols-outlined text-[18px] text-primary">movie</span>
+          <span id="attachName" class="font-body-sm text-body-sm truncate flex-1"></span>
+          <span id="attachState" class="font-label-sm text-label-sm text-outline"></span>
+          <button id="attachClear" class="material-symbols-outlined text-[18px] text-outline hover:text-error">close</button>
+        </div>
+
+        <div class="flex items-end gap-space-sm p-2 rounded-2xl bg-surface-container-lowest border border-outline-variant shadow-sm">
+          <button id="plusBtn" title="Add a video"
+                  class="shrink-0 w-10 h-10 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center transition-colors">
+            <span class="material-symbols-outlined text-[20px]">add</span>
+          </button>
+          <input id="fileInput" type="file" accept="video/*" class="hidden"/>
+          <textarea id="composer" rows="1" placeholder="Ask about your dog…"
+                    class="flex-1 resize-none bg-transparent py-2.5 font-body-md text-body-md placeholder:text-outline focus:outline-none max-h-40"></textarea>
+          <button id="sendBtn" title="Send"
+                  class="shrink-0 w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center hover:bg-primary-container transition-colors disabled:opacity-40">
+            <span class="material-symbols-outlined text-[20px]">arrow_upward</span>
+          </button>
+        </div>
+        <p class="text-center font-label-sm text-label-sm text-outline mt-space-sm">
+          Pupchat is educational and doesn't replace a vet or certified behaviorist.
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <!-- ── profile view ── -->
+  <main id="profileView" class="hidden relative pt-16 min-h-[calc(100vh-4rem)] w-full">
+    <div class="max-w-3xl mx-auto px-gutter py-space-lg space-y-space-lg">
+
+      <div class="flex items-center justify-between">
+        <h2 id="profileTitle" class="font-headline-lg text-headline-lg">Dog profile</h2>
+        <div class="flex gap-space-sm">
+          <button id="deleteDog" class="px-3 py-1.5 rounded-xl border border-outline-variant text-error font-label-md text-label-md hover:bg-error-container transition-colors">Delete</button>
+          <button id="closeProfile" class="px-3 py-1.5 rounded-xl bg-primary text-on-primary font-label-md text-label-md hover:bg-primary-container transition-colors">Done</button>
+        </div>
+      </div>
+
+      <div class="grid sm:grid-cols-2 gap-space-md">
+        <label class="block"><span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">Name</span>
+          <input id="p_name" class="mt-1 w-full px-3 py-2 rounded-lg bg-surface-container-lowest border border-outline-variant font-body-sm text-body-sm focus:outline-none focus:border-primary"/></label>
+        <label class="block"><span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">Breed</span>
+          <input id="p_breed" class="mt-1 w-full px-3 py-2 rounded-lg bg-surface-container-lowest border border-outline-variant font-body-sm text-body-sm focus:outline-none focus:border-primary"/></label>
+        <label class="block"><span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">Age</span>
+          <input id="p_age" placeholder="e.g. 3 years" class="mt-1 w-full px-3 py-2 rounded-lg bg-surface-container-lowest border border-outline-variant font-body-sm text-body-sm focus:outline-none focus:border-primary"/></label>
+        <label class="block"><span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">Known triggers</span>
+          <input id="p_triggers" placeholder="doorbell, delivery trucks" class="mt-1 w-full px-3 py-2 rounded-lg bg-surface-container-lowest border border-outline-variant font-body-sm text-body-sm focus:outline-none focus:border-primary"/></label>
+      </div>
+
+      <label class="block"><span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">Health</span>
+        <textarea id="p_health" rows="3" placeholder="Diagnoses, medication, last check-up…" class="mt-1 w-full px-3 py-2 rounded-lg bg-surface-container-lowest border border-outline-variant font-body-sm text-body-sm focus:outline-none focus:border-primary"></textarea></label>
+
+      <label class="block"><span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">Training history</span>
+        <textarea id="p_training" rows="3" placeholder="Classes, known commands, methods used…" class="mt-1 w-full px-3 py-2 rounded-lg bg-surface-container-lowest border border-outline-variant font-body-sm text-body-sm focus:outline-none focus:border-primary"></textarea></label>
+
+      <label class="block"><span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">Notes</span>
+        <textarea id="p_notes" rows="3" placeholder="Anything else Pupchat should know…" class="mt-1 w-full px-3 py-2 rounded-lg bg-surface-container-lowest border border-outline-variant font-body-sm text-body-sm focus:outline-none focus:border-primary"></textarea></label>
+
+      <div>
+        <div class="flex items-center justify-between mb-space-sm">
+          <span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">Baseline videos</span>
+          <button id="addBaseline" class="inline-flex items-center gap-1 font-label-md text-label-md text-primary hover:text-on-surface">
+            <span class="material-symbols-outlined text-[16px]">add</span>Add video
+          </button>
+        </div>
+        <input id="baselineInput" type="file" accept="video/*" class="hidden"/>
+        <div id="baselineList" class="grid sm:grid-cols-2 gap-space-sm"></div>
+        <p class="font-label-sm text-label-sm text-outline mt-space-sm">
+          5–10 seconds each. These are measured and kept on this machine; the browser
+          stores only their names and ids.
+        </p>
+      </div>
+
+      <p id="profileSaved" class="font-label-sm text-label-sm text-outline">Saved automatically.</p>
+    </div>
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body></html>

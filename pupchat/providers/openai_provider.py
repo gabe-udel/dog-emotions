@@ -26,12 +26,15 @@ class OpenAIProvider(Provider):
     media_kind = MEDIA_FRAMES
 
     def build_request(self, evidence_text, question, media, cfg,
-                      history=None) -> dict:
+                      history=None, profile=None) -> dict:
         settings = cfg.openai
-        content: list[dict] = [{
+        content: list[dict] = []
+        if profile:
+            content.append({"type": "input_text", "text": profile})
+        content.append({
             "type": "input_text",
             "text": "Automated measurements from this video:\n\n" + evidence_text,
-        }]
+        })
         for t, b64 in media:
             content.append({"type": "input_text", "text": f"Frame at {t:g}s:"})
             content.append({
