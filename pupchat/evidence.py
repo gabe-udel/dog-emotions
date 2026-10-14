@@ -23,6 +23,7 @@ import numpy as np
 
 from ._src import ANGULAR_FEATURES, NOT_FEATURES, smooth, window_frames, wrap
 from .config import BANNED_WORDS, EvidenceConfig
+from .reference import describe, phrase
 from .reliability import CLIP, EVENT, UNUSABLE, Reliability
 
 
@@ -173,7 +174,9 @@ def detect_events(series: np.ndarray, rel: Reliability, fps: float,
 
 def build_evidence(frames: list[dict[str, float]], clip: dict[str, float],
                    reliability: dict[str, Reliability],
-                   cfg: EvidenceConfig | None = None) -> dict:
+                   cfg: EvidenceConfig | None = None,
+                   reference: dict | None = None,
+                   dog_baseline: dict | None = None) -> dict:
     """Measurements -> a structured, tier-aware description.
 
     `frames` is the per-frame rows; `clip` is what aggregate() produced from them. Both
@@ -232,6 +235,15 @@ def build_evidence(frames: list[dict[str, float]], clip: dict[str, float],
             "value_text": p.value(level), "direction": p.direction(level),
             "across_dogs": round(rel.across_dogs, 2),
         }
+
+        # A number with nothing to judge it against can only be described vaguely. Both
+        # comparisons are computed, and each is simply absent when it cannot be made -
+        # never filled in with a reassuring "typical".
+        comparison = describe(name, level, reference=reference,
+                              dog_baseline=dog_baseline,
+                              error_sd=(rel.error_sd or rel.noise_sd))
+        if comparison:
+            entry["comparison"] = comparison
 
         if rel.tier == EVENT:
             series = np.array([r.get(name, np.nan) for r in frames], dtype=float)
@@ -295,7 +307,8 @@ def _group_unavailable(unavailable: list[dict]) -> list[str]:
             for reason, labels in by_reason.items()]
 
 
-def evidence_to_text(evidence: dict, cfg: EvidenceConfig | None = None) -> str:
+def evidence_to_text(evidence: dict, cfg: EvidenceConfig | None = None,
+                     dog_name: str = "") -> str:
     """Plain English, under ~300 words, no emotion words, no unearned timestamps.
 
     Section order is also the priority order. If the budget binds, clip-level
@@ -324,13 +337,26 @@ def evidence_to_text(evidence: dict, cfg: EvidenceConfig | None = None) -> str:
         moments.append("\nMoments: none. No feature able to resolve change within a "
                        "clip moved beyond its own measurement error.")
 
+    # A line that carries a comparison goes first, then strongest separation.
+    #
+    # The budget drops clip-level lines from the end, and without this it dropped
+    # exactly the informative ones: on a real clip the two features with a population
+    # band ranked 7th and 10th of 11, so both were trimmed while bare numbers survived.
+    # The prompt forbids repeating a raw number, so a line with nothing to compare it
+    # against is close to unusable - it should be the first to go, not the last.
     steady = sorted((e for e in evidence["clip_level"] if not e.get("events")),
-                    key=lambda e: -(e.get("across_dogs") or 0.0))
+                    key=lambda e: (0 if e.get("comparison") else 1,
+                                   -(e.get("across_dogs") or 0.0)))
     body: list[str] = []
     for e in steady:
         bits = f"- {e['label']}: {e['value_text']}"
         if e["direction"]:
             bits += f" ({e['direction']})"
+        # The comparison is the point of the line: a number on its own can only be
+        # described vaguely, and the prompt forbids repeating the number itself.
+        said = phrase(e["feature"], e.get("comparison") or {}, dog_name)
+        if said:
+            bits += f" - {said}"
         bits += f", visible {e['coverage'] * 100:.0f}% of frames."
         body.append(bits)
 

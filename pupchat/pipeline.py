@@ -25,10 +25,14 @@ from . import _src, spikes as spikes_mod
 from .config import OUT_DIR, Config
 from .derived import stillness_intervals, weight_shift_entry
 from .evidence import build_evidence, evidence_to_text
+from .reference import load_reference
 from .reliability import load_reliability
 from .smoothing import OneEuroConfig, filter_keypoints, jitter
 
-CACHE_VERSION = 5
+CACHE_VERSION = 6
+"""6: evidence lines carry a comparison ("higher than most dogs", "lower than usual").
+A cache written before that is still valid measurement, but its evidence TEXT is what
+the model reads, so serving the old one would quietly withhold the comparison."""
 """Bump when anything upstream of the cached rows changes meaning, so a stale cache is
 replaced rather than silently reused."""
 
@@ -95,7 +99,8 @@ def sample_frames(path: str | Path, scratch: Path, *, target_fps: float,
 
 
 def analyse(video: str | Path, cfg: Config | None = None, *,
-            force: bool = False, progress=print) -> dict:
+            force: bool = False, progress=print,
+            dog_baseline: dict | None = None, dog_name: str = "") -> dict:
     """Full measurement pass for one video. Cached by file hash."""
     cfg = cfg or Config()
     video = Path(video)
@@ -191,7 +196,12 @@ def analyse(video: str | Path, cfg: Config | None = None, *,
                                       cascade.sa_bodyparts, eff_fps, k.pcut)
 
     rel = load_reliability()
-    ev = build_evidence(frames, clip, rel, cfg.evidence)
+    # The population reference is optional: built once by tools/build_reference.py,
+    # and simply absent until then, in which case no comparison is made rather
+    # than a reassuring one being invented.
+    ev = build_evidence(frames, clip, rel, cfg.evidence,
+                        reference=load_reference(),
+                        dog_baseline=dog_baseline)
 
     # Flagged frames, stillness runs and weight shift ride alongside the tiered
     # evidence rather than inside it: none of them has a measured error_sd, so none
@@ -210,7 +220,7 @@ def analyse(video: str | Path, cfg: Config | None = None, *,
         "jitter_px_before": {kk: round(v, 4) for kk, v in jitter_before.items()},
         "jitter_px_after": {kk: round(v, 4) for kk, v in jitter_after.items()},
     }
-    text = evidence_to_text(ev, cfg.evidence)
+    text = evidence_to_text(ev, cfg.evidence, dog_name=dog_name)
 
     box = cascade.report(results)
     meta = {
