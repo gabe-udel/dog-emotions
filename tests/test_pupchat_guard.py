@@ -17,6 +17,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from pupchat.api import build_app
+from conftest import webapp_files
 from pupchat.config import ShareConfig
 from pupchat.guard import (AnalysisQueue, Budget, BudgetExceeded, QueueFull,
                            client_ip, is_local, read_capped, sweep)
@@ -356,15 +357,24 @@ def test_your_own_requests_are_not_rate_limited(monkeypatch):
 
 # ------------------------------------------------------------------ the page
 
-def webapp(name: str) -> str:
-    return (Path(__file__).resolve().parent.parent
-            / "pupchat" / "webapp" / name).read_text(encoding="utf-8")
+
+def page() -> str:
+    return webapp_files()["index.html"]
+
+
+def scripts() -> str:
+    """Every script the page ships, concatenated.
+
+    Named files were the old way, and splitting app.js into modules would have dropped
+    these four checks silently rather than failing them.
+    """
+    return "\n".join(t for n, t in webapp_files().items() if n.endswith(".js"))
 
 
 def test_the_page_credits_the_datasets_it_is_built_on():
     """CC BY-NC is BY. The credit is a licence condition, so it belongs where a
     visitor sees it and not only in the repo."""
-    html = webapp("index.html")
+    html = page()
     assert 'id="creditLine"' in html
     assert "Non-commercial" in html
 
@@ -372,15 +382,17 @@ def test_the_page_credits_the_datasets_it_is_built_on():
 def test_the_credit_text_comes_from_the_api_not_the_html():
     """Two copies of a licence string drift. The page renders what /api/health says,
     so the notice and the server can never disagree."""
-    js = webapp("app.js")
-    assert "h.attribution" in js
-    assert "function showCredits" in js
+    js = scripts()
+    assert "attribution" in js
+    assert "creditLine" in js
+    # the licence sentence itself must NOT be duplicated into the front end
+    assert "CC BY-NC" not in page().replace('id="creditLine"', "")
 
 
 def test_the_visitor_notice_states_retention_and_the_caps_from_config():
     """Hard-coding "24 hours" would make the page lie the moment retention_hours
     changed, and a wrong privacy promise is worse than none."""
-    js = webapp("app.js")
+    js = scripts()
     assert "share.retention_hours" in js
     assert "share.asks_per_day" in js
     assert "share.videos_per_day" in js
@@ -390,8 +402,8 @@ def test_the_visitor_notice_states_retention_and_the_caps_from_config():
 def test_the_visitor_notice_is_hidden_unless_the_server_is_shared():
     """On a local run there is no stranger whose video needs removing, so the notice
     would be noise - and claiming a retention policy that is not running is worse."""
-    tag = re.search(r'<p id="shareNotice"[^>]*>', webapp("index.html"))
+    tag = re.search(r'<p id="shareNotice"[^>]*>', page())
     assert tag, "no shareNotice element"
     classes = re.search(r'class="([^"]*)"', tag.group(0)).group(1).split()
     assert "hidden" in classes, classes
-    assert "if (!share.enabled) return;" in webapp("app.js")
+    assert "share.enabled" in scripts()

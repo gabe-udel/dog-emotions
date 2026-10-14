@@ -8,8 +8,11 @@ one that actually bit - JSON that a strict parser will accept.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import math
+import re
+from pathlib import Path
+
+from conftest import webapp_files, webapp_text
 
 import pytest
 from fastapi.testclient import TestClient
@@ -203,18 +206,53 @@ def test_the_page_is_served_at_the_root(client):
     r = client.get("/")
     assert r.status_code == 200
     assert "Pupchat" in r.text
-    assert "app.js" in r.text
 
 
-def test_the_page_script_is_served(client):
-    assert client.get("/app.js").status_code == 200
+def test_every_script_the_page_asks_for_is_served(client):
+    """Follows the page's own <script src=...> rather than naming a file.
+
+    The front end used to be one app.js. Pinning that name meant a split into modules
+    broke this test for the wrong reason while a genuinely missing module would not have
+    been noticed at all.
+    """
+    page = client.get("/").text
+    srcs = re.findall(r'<script[^>]+src="([^"]+)"', page)
+    assert srcs, "the page loads no scripts at all"
+    for src in srcs:
+        assert not src.startswith("http"), f"{src} is loaded from another server"
+        assert client.get("/" + src.lstrip("/")).status_code == 200, src
 
 
-def test_no_key_reaches_the_browser(client):
-    """The whole reason the API exists rather than calling Gemini from the page."""
-    blob = client.get("/").text + client.get("/app.js").text
+def test_no_key_reaches_the_browser():
+    """The whole reason the API exists rather than calling Gemini from the page.
+
+    Over every shippable file, not a hand-written list: a key leaking into a module
+    nobody remembered to add here is exactly the failure this is for.
+    """
+    blob = webapp_text()
     for marker in ("AIzaSy", "sk-", "GEMINI_API_KEY=", "OPENAI_API_KEY="):
         assert marker not in blob, marker
+
+
+def test_nothing_is_loaded_from_google():
+    """The page must work offline, and must not tell Google who is looking at it.
+
+    Three of the design's images arrived inside `style="background-image:url(...)"`
+    rather than `src`, so a grep for src= passed while the page still called out on
+    every visit. This reads the raw text instead.
+    """
+    for name, text in webapp_files().items():
+        for host in ("googleusercontent.com", "fonts.googleapis.com",
+                     "fonts.gstatic.com", "cdn.tailwindcss.com", "ajax.googleapis.com"):
+            assert host not in text, f"{name} still references {host}"
+
+
+def test_the_vendored_font_css_points_at_local_files_only():
+    """The stylesheet is generated from Google's own, so a missed rewrite there would
+    re-introduce the fetch the vendoring exists to remove."""
+    css = webapp_files()["assets/fonts.css"]
+    assert "url(" in css, "no @font-face sources at all"
+    assert "http" not in css, "a remote font source survived the rewrite"
 
 
 def test_api_routes_win_over_static_files(client):
@@ -241,32 +279,35 @@ def test_an_unknown_video_id_is_a_404(client):
 
 # ------------------------------------------------------------------ page wiring
 
-def test_errors_do_not_become_chats():
-    """The reported bug: toastError() routed through ensureChat(), so every rejected
+def test_errors_go_to_a_banner_and_never_into_the_conversation():
+    """The reported bug: the error path ran through the chat store, so every rejected
     upload created a chat titled "(error)" with no conversation in it - which reads
-    exactly like chat history not being saved."""
-    js = (Path(__file__).resolve().parent.parent
-          / "pupchat" / "webapp" / "app.js").read_text(encoding="utf-8")
-    assert 'ensureChat("(error)")' not in js
-    assert "function toastError" in js
-    assert 'getElementById' in js or '$("toast")' in js
+    exactly like chat history not being saved.
+
+    An error is feedback about something that did not happen. The page needs a surface
+    for it that is not the transcript.
+    """
+    files = webapp_files()
+    blob = "\n".join(files.values())
+    assert 'id="toast"' in files["index.html"], "no error banner in the page"
+    assert "toastError" in blob, "nothing reports errors to the owner"
+    assert 'ensureChat("(error)")' not in blob
 
 
-def test_the_page_has_a_toast_and_a_video_preview():
-    html = (Path(__file__).resolve().parent.parent
-            / "pupchat" / "webapp" / "index.html").read_text(encoding="utf-8")
-    assert 'id="toast"' in html
-    assert 'id="attachPreview"' in html
-    assert "<video" in html
+def test_an_unhandled_failure_still_says_something():
+    """'Never a blank screen' has to survive the errors nobody predicted."""
+    blob = "\n".join(webapp_files().values())
+    assert "unhandledrejection" in blob
+    assert 'addEventListener("error"' in blob
 
 
-def test_the_chat_bubble_streams_the_clip_rather_than_storing_it():
-    js = (Path(__file__).resolve().parent.parent
-          / "pupchat" / "webapp" / "app.js").read_text(encoding="utf-8")
-    assert "/api/video/" in js
-    # a data: URL here would mean the bytes went into localStorage, which is a ~5 MB
-    # quota against a multi-megabyte clip
-    assert "data:video" not in js
+def test_the_chat_streams_the_clip_rather_than_storing_it():
+    """A data: URL would put multi-megabyte video into localStorage, whose quota is
+    about 5 MB - so the first real clip would break saving the chat, not just the
+    preview. The bytes stay on the server and the page holds only the hash."""
+    blob = "\n".join(webapp_files().values())
+    assert "data:video" not in blob
+    assert "<video" in webapp_files()["index.html"]
 
 
 # ------------------------------------------------------------------ startup

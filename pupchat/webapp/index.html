@@ -1,217 +1,744 @@
 <!DOCTYPE html>
-<html lang="en"><head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Pupchat</title>
-<link href="https://fonts.googleapis.com" rel="preconnect"/>
-<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-<style>
-@layer base{html,body{margin:0;padding:0}body{overscroll-behavior:none}}
-::-webkit-scrollbar{width:8px;height:8px}
-::-webkit-scrollbar-thumb{background:#cfc5bb;border-radius:4px}
-.md{white-space:pre-wrap}
-.md strong{font-weight:700;color:#1d1b19}
-.md h3{font-weight:700;margin:1rem 0 .25rem;color:#1d1b19}
-.md ul{margin:.25rem 0 .5rem 1.1rem}
-.md li{margin:.15rem 0}
-.md ol{margin:.25rem 0 .5rem 1.3rem}
-@keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
-.dot{animation:blink 1.4s infinite}.dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
-</style>
-<script src="https://cdn.tailwindcss.com"></script>
-<script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"primary-fixed":"#eee0d1","on-error":"#ffffff","tertiary-fixed":"#dfe3e9","surface":"#fef8f3","tertiary-container":"#71757b","error":"#ba1a1a","on-tertiary-fixed-variant":"#43474d","secondary-container":"#ebdecf","surface-container-low":"#f8f3ee","secondary-fixed":"#eee0d2","error-container":"#ffdad6","on-tertiary":"#ffffff","tertiary":"#585c62","surface-container-highest":"#e7e1dd","on-primary":"#ffffff","on-secondary":"#ffffff","on-primary-fixed-variant":"#4e453a","on-secondary-fixed-variant":"#4e453b","surface-tint":"#675d51","surface-dim":"#ded9d4","primary-container":"#7d7366","on-secondary-fixed":"#211b12","on-primary-fixed":"#211a11","outline-variant":"#cfc5bb","on-tertiary-container":"#fdfcff","tertiary-fixed-dim":"#c3c7cd","primary":"#645a4f","background":"#fef8f3","on-secondary-container":"#6b6155","primary-fixed-dim":"#d2c4b6","inverse-primary":"#d2c4b6","surface-bright":"#fef8f3","inverse-on-surface":"#f5f0eb","on-primary-container":"#fffbff","on-surface":"#1d1b19","surface-variant":"#e7e1dd","surface-container":"#f3ede8","on-tertiary-fixed":"#181c21","inverse-surface":"#32302d","surface-container-high":"#ede7e2","on-background":"#1d1b19","on-surface-variant":"#4c463e","secondary-fixed-dim":"#d1c4b6","outline":"#7e766d","secondary":"#665d51","surface-container-lowest":"#ffffff","on-error-container":"#93000a"},borderRadius:{DEFAULT:"0.25rem",lg:"0.5rem",xl:"0.75rem",full:"9999px"},spacing:{"gutter":"1.5rem","space-lg":"1.5rem","space-md":"1rem","margin-mobile":"1rem","space-xs":"0.25rem","space-xl":"2.5rem","margin":"2rem","gutter-mobile":"1rem","space-sm":"0.5rem"},fontFamily:{"headline-sm":["Plus Jakarta Sans"],"label-md":["Plus Jakarta Sans"],"headline-lg":["Plus Jakarta Sans"],"body-md":["Plus Jakarta Sans"],"body-lg":["Plus Jakarta Sans"],"body-sm":["Plus Jakarta Sans"],"headline-md":["Plus Jakarta Sans"],"display-lg":["Plus Jakarta Sans"],"label-lg":["Plus Jakarta Sans"],"label-sm":["Plus Jakarta Sans"]},fontSize:{"headline-sm":["18px",{lineHeight:"26px",letterSpacing:"0em",fontWeight:"600"}],"label-md":["13px",{lineHeight:"18px",letterSpacing:"0.02em",fontWeight:"500"}],"headline-lg":["28px",{lineHeight:"36px",letterSpacing:"-0.015em",fontWeight:"600"}],"body-md":["16px",{lineHeight:"26px",letterSpacing:"0.01em",fontWeight:"400"}],"body-lg":["18px",{lineHeight:"28px",letterSpacing:"0.01em",fontWeight:"400"}],"body-sm":["14px",{lineHeight:"22px",letterSpacing:"0.01em",fontWeight:"400"}],"headline-md":["22px",{lineHeight:"30px",letterSpacing:"-0.01em",fontWeight:"600"}],"display-lg":["36px",{lineHeight:"44px",letterSpacing:"-0.02em",fontWeight:"600"}],"label-lg":["14px",{lineHeight:"20px",letterSpacing:"0.02em",fontWeight:"600"}],"label-sm":["11px",{lineHeight:"16px",letterSpacing:"0.04em",fontWeight:"600"}]}}}};</script>
-</head>
-<body class="bg-surface font-body-md text-on-surface antialiased">
 
-<!-- transient errors. Deliberately NOT part of a chat: an error is feedback about an
-     action that did not happen, and putting it in a transcript made every rejected
-     upload look like a saved conversation. -->
-<div id="toast" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-lg w-[90%]">
-  <div class="flex items-start gap-space-sm px-4 py-3 rounded-xl bg-error-container text-on-error-container border border-error/20 shadow-lg">
-    <span class="material-symbols-outlined text-[20px]">error_outline</span>
-    <span id="toastText" class="font-body-sm text-body-sm flex-1"></span>
-    <button id="toastClose" class="material-symbols-outlined text-[18px] opacity-70 hover:opacity-100">close</button>
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/>
+<style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="assets/tailwind.js"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"primary-fixed":"#eee0d1","on-error":"#ffffff","tertiary-fixed":"#dfe3e9","surface":"#fef8f3","tertiary-container":"#71757b","error":"#ba1a1a","on-tertiary-fixed-variant":"#43474d","secondary-container":"#ebdecf","surface-container-low":"#f8f3ee","secondary-fixed":"#eee0d2","error-container":"#ffdad6","on-tertiary":"#ffffff","tertiary":"#585c62","surface-container-highest":"#e7e1dd","on-primary":"#ffffff","on-secondary":"#ffffff","on-primary-fixed-variant":"#4e453a","on-secondary-fixed-variant":"#4e453b","surface-tint":"#675d51","surface-dim":"#ded9d4","primary-container":"#7d7366","on-secondary-fixed":"#211b12","on-primary-fixed":"#211a11","outline-variant":"#cfc5bb","on-tertiary-container":"#fdfcff","tertiary-fixed-dim":"#c3c7cd","primary":"#645a4f","background":"#fef8f3","on-secondary-container":"#6b6155","primary-fixed-dim":"#d2c4b6","inverse-primary":"#d2c4b6","surface-bright":"#fef8f3","inverse-on-surface":"#f5f0eb","on-primary-container":"#fffbff","on-surface":"#1d1b19","surface-variant":"#e7e1dd","surface-container":"#f3ede8","on-tertiary-fixed":"#181c21","inverse-surface":"#32302d","surface-container-high":"#ede7e2","on-background":"#1d1b19","on-surface-variant":"#4c463e","secondary-fixed-dim":"#d1c4b6","outline":"#7e766d","secondary":"#665d51","surface-container-lowest":"#ffffff","on-error-container":"#93000a"},borderRadius:{DEFAULT:"0.25rem",lg:"0.5rem",xl:"0.75rem",full:"9999px"},spacing:{"gutter":"1.5rem","space-lg":"1.5rem","space-md":"1rem","margin-mobile":"1rem","space-xs":"0.25rem","space-xl":"2.5rem","margin":"2rem","gutter-mobile":"1rem","space-sm":"0.5rem"},fontFamily:{"headline-sm":["Plus Jakarta Sans"],"label-md":["Plus Jakarta Sans"],"headline-lg":["Plus Jakarta Sans"],"body-md":["Plus Jakarta Sans"],"body-lg":["Plus Jakarta Sans"],"body-sm":["Plus Jakarta Sans"],"headline-md":["Plus Jakarta Sans"],"display-lg":["Plus Jakarta Sans"],"label-lg":["Plus Jakarta Sans"],"label-sm":["Plus Jakarta Sans"]},fontSize:{"headline-sm":["18px",{lineHeight:"26px",letterSpacing:"0em",fontWeight:"600"}],"label-md":["13px",{lineHeight:"18px",letterSpacing:"0.02em",fontWeight:"500"}],"headline-lg":["28px",{lineHeight:"36px",letterSpacing:"-0.015em",fontWeight:"600"}],"body-md":["16px",{lineHeight:"26px",letterSpacing:"0.01em",fontWeight:"400"}],"body-lg":["18px",{lineHeight:"28px",letterSpacing:"0.01em",fontWeight:"400"}],"body-sm":["14px",{lineHeight:"22px",letterSpacing:"0.01em",fontWeight:"400"}],"headline-md":["22px",{lineHeight:"30px",letterSpacing:"-0.01em",fontWeight:"600"}],"display-lg":["36px",{lineHeight:"44px",letterSpacing:"-0.02em",fontWeight:"600"}],"label-lg":["14px",{lineHeight:"20px",letterSpacing:"0.02em",fontWeight:"600"}],"label-sm":["11px",{lineHeight:"16px",letterSpacing:"0.04em",fontWeight:"600"}]}}}};</script><link href="assets/fonts.css" rel="stylesheet"/>
+</head><body style="background:#fef8f3" class="bg-surface font-body-md text-on-surface antialiased"><aside data-sidebar class="fixed left-0 top-0 h-screen w-72 -translate-x-full lg:translate-x-0 transition-transform duration-200 bg-surface-container-low border-r border-outline-variant z-40 flex flex-col justify-between select-none"><div class="flex flex-col h-full overflow-hidden"><div class="p-space-md border-b border-outline-variant/60 flex items-center justify-between gap-space-sm"><div class="flex items-center gap-space-sm"><img alt="Pupchat Brand Logo" class="h-8 w-auto object-contain" src="assets/logo.png"/><span class="font-headline-sm text-headline-sm text-on-surface tracking-tight">Pupchat</span></div><a class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-on-primary font-label-md text-label-md hover:bg-primary-container transition-colors shadow-sm" data-path="new-chat" href="#"><span class="material-symbols-outlined text-[16px]">edit_square</span><span>New</span></a></div><div class="px-space-md pt-space-md pb-space-sm"><div class="relative flex items-center w-full"><span class="material-symbols-outlined absolute left-3 text-outline text-[18px]">search</span><input class="w-full pl-9 pr-3 py-2 rounded-lg bg-surface-container-lowest border border-outline-variant font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-primary transition-all" placeholder="Search chats..." type="text"/></div></div><div class="flex-1 overflow-y-auto px-space-md py-space-sm space-y-space-lg"><section><div><div class="flex items-center justify-between mb-space-sm px-1"><span class="font-label-sm text-label-sm uppercase tracking-wider text-outline font-semibold">My Dogs</span><a class="inline-flex items-center gap-1 font-label-sm text-label-sm text-primary hover:text-on-surface transition-colors" data-path="add-dog" href="#"><span class="material-symbols-outlined text-[14px]">add</span>Add</a></div><nav class="space-y-1" data-active-classes="bg-surface-container-lowest border-outline-variant text-on-surface shadow-[0_1px_3px_rgba(43,41,38,0.04)] font-medium"><p data-empty="dogs" class="px-3 py-2 font-body-sm text-body-sm text-outline">No dogs yet. Press Add to make one.</p></nav></div></section><section><div><div class="mb-space-sm px-1"><span class="font-label-sm text-label-sm uppercase tracking-wider text-outline font-semibold">Recent Chats</span></div><nav class="space-y-1" data-active-classes="bg-surface-container-lowest border-outline-variant text-on-surface shadow-[0_1px_3px_rgba(43,41,38,0.04)] font-medium"><p data-empty="chats" class="px-3 py-2 font-body-sm text-body-sm text-outline">No chats yet. Add a clip and ask a question.</p></nav></div></section></div><div class="p-space-md border-t border-outline-variant/60 flex items-center justify-between bg-surface-container-low">
+<div class="flex flex-col gap-2 min-w-0 flex-1">
+  <div class="flex items-center gap-2 font-label-sm text-label-sm text-outline">
+    <span id="healthDot" class="w-2 h-2 rounded-full bg-outline shrink-0"></span>
+    <span id="healthText" class="truncate">connecting…</span>
   </div>
+  <p id="creditLine" class="font-label-sm text-label-sm text-outline/80 leading-snug"></p>
+  <p class="font-label-sm text-label-sm text-outline/70 leading-snug">
+    Non-commercial demo. Research prototype, not a product.</p>
+  <p id="shareNotice" class="hidden font-label-sm text-label-sm text-outline/80 leading-snug"></p>
+</div><div class="flex items-center gap-0.5"><button class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors" title="Collapse sidebar" type="button"><span class="material-symbols-outlined text-[20px]">dock_to_right</span></button></div></div></div></aside><div class="lg:pl-72 min-h-screen bg-surface"><div data-scrim class="hidden lg:hidden fixed inset-0 bg-inverse-surface/40 z-30"></div><header class="fixed top-0 left-0 lg:left-72 right-0 h-16 bg-surface/90 backdrop-blur-md border-b border-outline-variant/50 z-30 flex items-center justify-between px-space-lg shadow-[0_1px_6px_rgba(43,41,38,0.02)]"><button data-menu type="button" title="Menu"
+ class="lg:hidden p-2 -ml-2 mr-1 rounded-full text-on-surface-variant hover:bg-surface-container">
+ <span class="material-symbols-outlined text-[22px]">menu</span></button><div class="flex items-center gap-space-md"><div class="relative inline-flex items-center"><button class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-container-lowest border border-outline-variant hover:bg-surface-container transition-colors shadow-sm" type="button"><span class="w-2 h-2 rounded-full bg-primary"></span><span class="font-label-md text-label-md text-on-surface font-medium">Chatting about: <strong class="text-primary font-semibold" data-field="dogName">no dog yet</strong></span><span class="material-symbols-outlined text-[16px] text-outline">expand_more</span></button></div><a class="hidden sm:inline-flex items-center gap-1 font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" data-path="dog-profile" href="#"><span class="material-symbols-outlined text-[16px]">pets</span><span>Profile &amp; Baselines</span></a></div><div class="flex items-center gap-space-sm"></div></header><main class="relative pt-16 bg-surface min-h-[calc(100vh-4rem)] w-full"><div class="flex flex-col w-full">
+<!-- ===================== welcome ===================== -->
+<div data-view="welcome" class="relative w-full flex-1 flex flex-col items-center justify-between min-h-[calc(100vh-4rem)] px-gutter pb-6 pt-8 max-w-4xl mx-auto">
+<!-- Top Canine Context Header / Tag -->
+<div class="w-full flex justify-center items-center">
+<div class="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-surface-container-low shadow-sm">
+<div class="relative w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-secondary-container">
+<div data-avatar="dog" class="w-full h-full rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center shrink-0 overflow-hidden bg-cover bg-center "><span data-field="dogInitial" class="font-label-sm text-label-sm font-semibold">?</span></div>
+</div>
+<span class="font-label-md text-label-md text-on-surface">Chatting about: <span class="font-semibold text-primary" data-field="dogName">no dog yet</span></span>
+<span class="font-label-sm text-label-sm text-tertiary px-2 py-0.5 rounded-full bg-surface-container font-medium" data-field="dogMeta"></span>
+<button aria-label="Switch dog context" class="text-tertiary hover:text-on-surface transition-colors flex items-center" type="button">
+<span class="material-symbols-outlined text-[18px]">expand_more</span>
+</button>
+</div>
+</div>
+<!-- Center Hero Welcoming Area -->
+<div class="w-full flex flex-col items-center text-center my-auto py-6 space-y-6">
+<!-- Dog Avatar with Pupchat Empathy Badge -->
+<div class="relative group">
+<div class="w-28 h-28 sm:w-32 sm:h-32 rounded-full p-1 bg-surface-container shadow-md transition-transform duration-300 group-hover:scale-105">
+<div class="w-full h-full rounded-full overflow-hidden bg-secondary-container">
+<div data-avatar="dog" class="w-28 h-28 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center shrink-0 overflow-hidden bg-cover bg-center shadow-sm"><span data-field="dogInitial" class="font-display-lg text-display-lg font-semibold">?</span></div>
+</div>
+</div>
+<!-- Status indicator badge -->
+<div class="absolute bottom-1 right-1 w-9 h-9 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">pets</span>
+</div>
+</div>
+<!-- Warm Editorial Typographic Section -->
+<div class="max-w-xl space-y-2 px-4">
+<h1 class="font-headline-lg text-headline-lg sm:text-[32px] sm:leading-[40px] text-on-surface tracking-tight font-semibold">
+          What’s <span data-field="dogName">your dog</span> up to today?
+        </h1>
+<p class="font-body-md text-body-md text-tertiary max-w-lg mx-auto">
+          Ask a question or upload a video clip to decode your dog’s body language, subtle habits, or emotional state.
+        </p>
+</div>
+<!-- Quick Behavioral Prompt Cards -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3.5 w-full max-w-3xl pt-2 text-left">
+<!-- Card 1: Stress & Calming Signals -->
+<button class="group flex flex-col p-5 rounded-2xl bg-surface-container-lowest shadow-sm hover:shadow-md hover:bg-surface-container-low transition-all text-left" data-prompt="Is my dog stressed? Here is what I am noticing: " type="button">
+<div class="w-9 h-9 rounded-xl bg-surface-container flex items-center justify-center text-primary mb-3.5 group-hover:bg-primary group-hover:text-on-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">psychology</span>
+</div>
+<div class="font-headline-sm text-headline-sm text-on-surface mb-1 group-hover:text-primary transition-colors flex items-center justify-between">
+<span>Is my dog stressed?</span>
+<span class="material-symbols-outlined text-[16px] text-tertiary-fixed-dim opacity-0 group-hover:opacity-100 group-hover:text-primary transition-opacity">arrow_forward</span>
+</div>
+<p class="font-body-sm text-body-sm text-tertiary line-clamp-2">
+            Decode subtle signs like lip licking, yawning, whale eye, and tension ridges.
+          </p>
+</button>
+<!-- Card 2: Door & Guest Barking -->
+<button class="group flex flex-col p-5 rounded-2xl bg-surface-container-lowest shadow-sm hover:shadow-md hover:bg-surface-container-low transition-all text-left" data-prompt="Why does my dog bark when guests arrive?" type="button">
+<div class="w-9 h-9 rounded-xl bg-surface-container flex items-center justify-center text-primary mb-3.5 group-hover:bg-primary group-hover:text-on-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">door_front</span>
+</div>
+<div class="font-headline-sm text-headline-sm text-on-surface mb-1 group-hover:text-primary transition-colors flex items-center justify-between">
+<span>Why bark at guests?</span>
+<span class="material-symbols-outlined text-[16px] text-tertiary-fixed-dim opacity-0 group-hover:opacity-100 group-hover:text-primary transition-opacity">arrow_forward</span>
+</div>
+<p class="font-body-sm text-body-sm text-tertiary line-clamp-2">
+            Understand alert vs. fear arousal and structured protocols to calm doorbell mania.
+          </p>
+</button>
+<!-- Card 3: Play vs Aggression -->
+<button class="group flex flex-col p-5 rounded-2xl bg-surface-container-lowest shadow-sm hover:shadow-md hover:bg-surface-container-low transition-all text-left" data-prompt="Is this rough play or actual aggression between dogs?" type="button">
+<div class="w-9 h-9 rounded-xl bg-surface-container flex items-center justify-center text-primary mb-3.5 group-hover:bg-primary group-hover:text-on-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">sports_kabaddi</span>
+</div>
+<div class="font-headline-sm text-headline-sm text-on-surface mb-1 group-hover:text-primary transition-colors flex items-center justify-between">
+<span>Play or aggression?</span>
+<span class="material-symbols-outlined text-[16px] text-tertiary-fixed-dim opacity-0 group-hover:opacity-100 group-hover:text-primary transition-opacity">arrow_forward</span>
+</div>
+<p class="font-body-sm text-body-sm text-tertiary line-clamp-2">
+            Analyze play bows, self-handicapping, loose bouncy motion vs. rigid fixations.
+          </p>
+</button>
+</div>
+<!-- Behavioral Baseline Quick Micro-Summary Pill -->
+
+<div data-baseline-strip class="hidden items-center gap-2 px-4 py-2 rounded-full bg-surface-container-low">
+  <span class="material-symbols-outlined text-[16px] text-primary">verified</span>
+  <span class="font-label-sm text-label-sm text-on-surface-variant">
+    <span data-field="baselineCount">0</span> baseline clips saved</span>
+  <a data-link="dog" class="font-label-sm text-label-sm text-primary hover:underline cursor-pointer">View profile</a>
+</div>
+</div>
+<!-- Centered Bottom Message Dock (ChatGPT-style) -->
+<div class="w-full max-w-2xl px-2 flex flex-col items-center">
+<!-- Video / File Upload preview chip (hidden by default, toggled via JS) -->
+<div class="hidden mb-2 self-start inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-container text-on-surface font-label-md text-label-md shadow-sm" id="media-chip">
+<span class="material-symbols-outlined text-[18px] text-primary">videocam</span>
+<span class="truncate max-w-[200px]" id="media-name"></span>
+<button class="text-tertiary hover:text-error ml-1" onclick="removeMedia()" type="button">
+<span class="material-symbols-outlined text-[16px]">close</span>
+</button>
+</div>
+<div class="w-full rounded-3xl bg-surface-container-lowest shadow-md p-2.5 transition-all focus-within:shadow-lg focus-within:bg-surface-container-lowest">
+<div class="flex items-end gap-2 px-2 py-1">
+<!-- Attachment Dropdown / Button -->
+<div class="relative flex-shrink-0 mb-1">
+<input accept="video/*,image/*" class="hidden" id="media-upload-input" onchange="handleFileSelected(event)" type="file"/>
+<button class="w-9 h-9 rounded-full flex items-center justify-center text-tertiary hover:text-on-surface hover:bg-surface-container transition-colors group relative" onclick="document.getElementById('media-upload-input').click()" title="Upload canine video or photo" type="button">
+<span class="material-symbols-outlined text-[20px]">add</span>
+<!-- Tooltip hint -->
+<span class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:flex items-center px-2 py-1 rounded bg-inverse-surface text-inverse-on-surface font-label-sm text-label-sm whitespace-nowrap shadow-sm pointer-events-none">
+                Upload clip for analysis
+              </span>
+</button>
+</div>
+<!-- Auto-expanding Multiline Input -->
+<div class="flex-1 min-w-0">
+<textarea class="w-full max-h-36 py-2 px-1 resize-none bg-transparent font-body-md text-body-md text-on-surface placeholder:text-outline focus:outline-none leading-relaxed" id="prompt-input" oninput="autoExpand(this)" placeholder="Ask about your dog…" rows="1"></textarea>
+</div>
+<!-- Action Buttons / Send -->
+
+</div>
+</div>
+<!-- Reassuring Educational Medical Disclaimer -->
+<p class="font-label-sm text-label-sm text-tertiary mt-2.5 text-center">
+        Pupchat is an educational companion and does not replace certified veterinary or behavioral diagnosis.
+      </p>
+</div>
 </div>
 
-<!-- ───────────────────────────── sidebar ───────────────────────────── -->
-<aside class="fixed left-0 top-0 h-screen w-72 bg-surface-container-low border-r border-outline-variant z-40 flex flex-col justify-between select-none">
-  <div class="flex flex-col h-full overflow-hidden">
+<!-- ===================== chat ===================== -->
+<div data-view="chat" class="hidden flex-col w-full">
 
-    <div class="p-space-md border-b border-outline-variant/60 flex items-center justify-between gap-space-sm">
-      <div class="flex items-center gap-space-sm">
-        <span class="material-symbols-outlined text-primary">pets</span>
-        <span class="font-headline-sm text-headline-sm tracking-tight">Pupchat</span>
-      </div>
-      <button id="newChat" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-on-primary font-label-md text-label-md hover:bg-primary-container transition-colors shadow-sm">
-        <span class="material-symbols-outlined text-[16px]">edit_square</span><span>New</span>
-      </button>
-    </div>
+<!-- Sub-header Breadcrumb / Dog Context Banner -->
+<section class="sticky top-0 z-20 bg-surface/95 backdrop-blur-sm px-gutter py-space-sm shadow-sm transition-all">
+<div class="max-w-3xl mx-auto flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="relative">
+<div data-avatar="dog" class="w-10 h-10 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center shrink-0 overflow-hidden bg-cover bg-center shadow-sm ring-2 ring-primary-fixed"><span data-field="dogInitial" class="font-label-md text-label-md font-semibold">?</span></div>
+<span class="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-primary ring-2 ring-surface"></span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5 cursor-pointer group">
+<span class="font-label-lg text-label-lg text-on-surface">Chatting about: <strong class="text-primary font-bold" data-field="dogName">no dog yet</strong></span>
+<span class="material-symbols-outlined text-[18px] text-outline group-hover:text-primary transition-colors">expand_more</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+              Active Profile
+            </span>
+<span class="font-body-sm text-body-sm text-outline" data-field="dogMeta"></span>
+</div>
+</div>
+</div>
+<div data-stream class="hidden sm:flex items-center gap-2">
+<button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface-variant font-label-md text-label-md transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">history_edu</span>
+<span>Baselines</span>
+</button>
+<button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface-variant font-label-md text-label-md transition-colors" title="Export Thread" type="button">
+<span class="material-symbols-outlined text-[16px]">share</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Conversation Column -->
+<div class="max-w-3xl mx-auto w-full px-gutter py-space-lg pb-44 flex flex-col space-y-space-xl">
+<!-- Timeline Break -->
 
-    <div class="px-space-md pt-space-md pb-space-sm">
-      <div class="relative flex items-center w-full">
-        <span class="material-symbols-outlined absolute left-3 text-outline text-[18px]">search</span>
-        <input id="search" placeholder="Search chats..." type="text"
-               class="w-full pl-9 pr-3 py-2 rounded-lg bg-surface-container-lowest border border-outline-variant font-body-sm text-body-sm placeholder:text-outline focus:outline-none focus:border-primary transition-all"/>
-      </div>
-    </div>
+<!-- 1. USER MESSAGE ITEM -->
 
-    <div class="flex-1 overflow-y-auto px-space-md py-space-sm space-y-space-lg">
-      <section>
-        <div class="flex items-center justify-between mb-space-sm px-1">
-          <span class="font-label-sm text-label-sm uppercase tracking-wider text-outline font-semibold">My Dogs</span>
-          <button id="addDog" class="inline-flex items-center gap-1 font-label-sm text-label-sm text-primary hover:text-on-surface transition-colors">
-            <span class="material-symbols-outlined text-[14px]">add</span>Add
-          </button>
+<!-- 2. PUPCHAT AI RESPONSE CARD -->
+
+</div>
+<!-- 3. FLOATING BOTTOM PROMPT DOCK -->
+<div class="fixed bottom-0 left-0 lg:left-72 right-0 z-30 px-gutter pb-space-lg pointer-events-none">
+<div class="max-w-3xl mx-auto w-full pointer-events-auto flex flex-col items-center">
+<!-- Popover Menu Demonstration (Active State) -->
+<div class="hidden w-60 mb-2 bg-surface-container-lowest rounded-2xl p-1.5 shadow-xl transition-all self-start ml-2" id="media-upload-popover">
+<div class="px-3 py-1.5 font-label-sm text-label-sm uppercase tracking-wider text-outline font-semibold">
+          Add Canine Media
         </div>
-        <nav id="dogList" class="space-y-1"></nav>
-      </section>
+<div class="space-y-0.5">
+<!-- Upload Video (Selected) -->
+<a class="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-surface-container text-on-surface font-label-md text-label-md font-medium group transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px] text-primary">video_file</span>
+<span class="flex-1 text-left">Upload video</span>
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+</a>
+<!-- Record Video -->
+<a class="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px] text-error">radio_button_checked</span>
+<span class="flex-1 text-left">Record video</span>
+</a>
+<!-- Add Photo -->
+<a class="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px] text-tertiary">add_a_photo</span>
+<span class="flex-1 text-left">Add photo</span>
+</a>
+</div>
+</div>
+<!-- Main Input Dock Pill -->
+<div class="w-full bg-surface-container-lowest rounded-2xl p-2.5 shadow-xl flex items-center gap-2.5">
+<!-- Plus Button with Dropdown Trigger -->
+<button class="w-10 h-10 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface flex items-center justify-center transition-colors shadow-sm shrink-0" id="toggle-popover-btn" title="Attach video or photo" type="button">
+<span class="material-symbols-outlined text-[22px]">add</span>
+</button>
+<!-- Prompt Text Area Input -->
+<div class="flex-1 min-w-0">
+<input class="w-full bg-transparent border-0 focus:outline-none font-body-md text-body-md text-on-surface placeholder:text-outline px-2 py-1" placeholder="Ask about your dog…" type="text"/>
+</div>
+<!-- Voice Dictation Button -->
 
-      <section>
-        <div class="mb-space-sm px-1">
-          <span class="font-label-sm text-label-sm uppercase tracking-wider text-outline font-semibold">Recent Chats</span>
-        </div>
-        <nav id="chatList" class="space-y-1"></nav>
-        <p id="noChats" class="px-3 py-2 font-body-sm text-body-sm text-outline">No chats yet.</p>
-      </section>
-    </div>
-
-    <div class="p-space-md border-t border-outline-variant/60 bg-surface-container-low space-y-2">
-      <div class="flex items-center gap-2 font-label-sm text-label-sm text-outline">
-        <span id="healthDot" class="w-2 h-2 rounded-full bg-outline"></span>
-        <span id="healthText" class="truncate">connecting…</span>
-      </div>
-      <!-- Attribution is a condition of CC BY-NC, not a courtesy, so it is on the
-           page and not only in the docs. Text comes from /api/health so the page and
-           the API can never disagree about it. -->
-      <p id="creditLine" class="font-label-sm text-label-sm text-outline/80 leading-snug"></p>
-      <p class="font-label-sm text-label-sm text-outline/70 leading-snug">
-        Non-commercial demo. Research prototype, not a product.
-      </p>
-    </div>
-  </div>
-</aside>
-
-<!-- ───────────────────────────── main ───────────────────────────── -->
-<div class="pl-72 min-h-screen bg-surface">
-
-  <header class="fixed top-0 left-72 right-0 h-16 bg-surface/90 backdrop-blur-md border-b border-outline-variant/50 z-30 flex items-center justify-between px-space-lg">
-    <div class="flex items-center gap-space-md">
-      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-container-lowest border border-outline-variant shadow-sm">
-        <span class="w-2 h-2 rounded-full bg-primary"></span>
-        <span class="font-label-md text-label-md">Chatting about: <strong id="activeDogName" class="text-primary font-semibold">no dog selected</strong></span>
-      </div>
-      <button id="openProfile" class="hidden sm:inline-flex items-center gap-1 font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors">
-        <span class="material-symbols-outlined text-[16px]">pets</span><span>Profile</span>
-      </button>
-    </div>
-    <div class="font-label-sm text-label-sm text-outline" id="modelBadge"></div>
-  </header>
-
-  <!-- ── chat view ── -->
-  <main id="chatView" class="relative pt-16 min-h-[calc(100vh-4rem)] w-full">
-    <div class="max-w-3xl mx-auto px-gutter pb-48 pt-space-lg">
-      <div id="messages" class="space-y-space-lg"></div>
-
-      <div id="emptyState" class="text-center py-space-xl">
-        <span class="material-symbols-outlined text-[48px] text-outline-variant">pets</span>
-        <h2 class="font-headline-md text-headline-md mt-space-sm">Ask about your dog</h2>
-        <p class="font-body-sm text-body-sm text-outline mt-space-xs max-w-md mx-auto">
-          Add a 5–10 second clip with the + button, then ask a question.
-          The first clip takes a few minutes to measure.
-        </p>
-      </div>
-    </div>
-
-    <!-- composer -->
-    <div class="fixed bottom-0 left-72 right-0 bg-gradient-to-t from-surface via-surface to-transparent pt-space-lg pb-space-md px-gutter">
-      <div class="max-w-3xl mx-auto">
-        <div id="attachRow" class="hidden mb-space-sm rounded-xl bg-surface-container border border-outline-variant overflow-hidden">
-          <video id="attachPreview" class="hidden w-full max-h-48 bg-black block" controls preload="metadata"></video>
-          <div class="flex items-center gap-space-sm px-3 py-2">
-            <span class="material-symbols-outlined text-[18px] text-primary">movie</span>
-            <span id="attachName" class="font-body-sm text-body-sm truncate flex-1"></span>
-            <span id="attachState" class="font-label-sm text-label-sm text-outline"></span>
-            <button id="attachClear" class="material-symbols-outlined text-[18px] text-outline hover:text-error">close</button>
-          </div>
-        </div>
-
-        <div class="flex items-end gap-space-sm p-2 rounded-2xl bg-surface-container-lowest border border-outline-variant shadow-sm">
-          <button id="plusBtn" title="Add a video"
-                  class="shrink-0 w-10 h-10 rounded-full bg-surface-container hover:bg-surface-container-high flex items-center justify-center transition-colors">
-            <span class="material-symbols-outlined text-[20px]">add</span>
-          </button>
-          <input id="fileInput" type="file" accept="video/*" class="hidden"/>
-          <textarea id="composer" rows="1" placeholder="Ask about your dog…"
-                    class="flex-1 resize-none bg-transparent py-2.5 font-body-md text-body-md placeholder:text-outline focus:outline-none max-h-40"></textarea>
-          <button id="sendBtn" title="Send"
-                  class="shrink-0 w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center hover:bg-primary-container transition-colors disabled:opacity-40">
-            <span class="material-symbols-outlined text-[20px]">arrow_upward</span>
-          </button>
-        </div>
-        <p class="text-center font-label-sm text-label-sm text-outline mt-space-sm">
+<!-- Send Button -->
+<button class="w-10 h-10 rounded-full bg-primary hover:bg-primary-container text-on-primary flex items-center justify-center transition-all shadow-md shrink-0 hover:scale-105 active:scale-95" title="Send message" type="button">
+<span class="material-symbols-outlined text-[20px]">arrow_upward</span>
+</button>
+</div>
+<!-- Reassuring Canine Disclaimer Under Dock -->
+<div class="mt-2 text-center">
+<p class="font-label-sm text-label-sm text-outline tracking-tight">
           Pupchat is educational and doesn't replace a vet or certified behaviorist.
         </p>
-        <!-- Shown only when the server is in share mode: these facts are about
-             OTHER people's uploads, so they would be noise on a local run. -->
-        <p id="shareNotice" class="hidden text-center font-label-sm text-label-sm text-outline/80 mt-1 leading-snug"></p>
-      </div>
-    </div>
-  </main>
-
-  <!-- ── profile view ── -->
-  <main id="profileView" class="hidden relative pt-16 min-h-[calc(100vh-4rem)] w-full">
-    <div class="max-w-3xl mx-auto px-gutter py-space-lg space-y-space-lg">
-
-      <div class="flex items-center justify-between">
-        <h2 id="profileTitle" class="font-headline-lg text-headline-lg">Dog profile</h2>
-        <div class="flex gap-space-sm">
-          <button id="deleteDog" class="px-3 py-1.5 rounded-xl border border-outline-variant text-error font-label-md text-label-md hover:bg-error-container transition-colors">Delete</button>
-          <button id="closeProfile" class="px-3 py-1.5 rounded-xl bg-primary text-on-primary font-label-md text-label-md hover:bg-primary-container transition-colors">Done</button>
-        </div>
-      </div>
-
-      <div class="grid sm:grid-cols-2 gap-space-md">
-        <label class="block"><span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">Name</span>
-          <input id="p_name" class="mt-1 w-full px-3 py-2 rounded-lg bg-surface-container-lowest border border-outline-variant font-body-sm text-body-sm focus:outline-none focus:border-primary"/></label>
-        <label class="block"><span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">Breed</span>
-          <input id="p_breed" class="mt-1 w-full px-3 py-2 rounded-lg bg-surface-container-lowest border border-outline-variant font-body-sm text-body-sm focus:outline-none focus:border-primary"/></label>
-        <label class="block"><span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">Age</span>
-          <input id="p_age" placeholder="e.g. 3 years" class="mt-1 w-full px-3 py-2 rounded-lg bg-surface-container-lowest border border-outline-variant font-body-sm text-body-sm focus:outline-none focus:border-primary"/></label>
-        <label class="block"><span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">Known triggers</span>
-          <input id="p_triggers" placeholder="doorbell, delivery trucks" class="mt-1 w-full px-3 py-2 rounded-lg bg-surface-container-lowest border border-outline-variant font-body-sm text-body-sm focus:outline-none focus:border-primary"/></label>
-      </div>
-
-      <label class="block"><span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">Health</span>
-        <textarea id="p_health" rows="3" placeholder="Diagnoses, medication, last check-up…" class="mt-1 w-full px-3 py-2 rounded-lg bg-surface-container-lowest border border-outline-variant font-body-sm text-body-sm focus:outline-none focus:border-primary"></textarea></label>
-
-      <label class="block"><span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">Training history</span>
-        <textarea id="p_training" rows="3" placeholder="Classes, known commands, methods used…" class="mt-1 w-full px-3 py-2 rounded-lg bg-surface-container-lowest border border-outline-variant font-body-sm text-body-sm focus:outline-none focus:border-primary"></textarea></label>
-
-      <label class="block"><span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">Notes</span>
-        <textarea id="p_notes" rows="3" placeholder="Anything else Pupchat should know…" class="mt-1 w-full px-3 py-2 rounded-lg bg-surface-container-lowest border border-outline-variant font-body-sm text-body-sm focus:outline-none focus:border-primary"></textarea></label>
-
-      <div>
-        <div class="flex items-center justify-between mb-space-sm">
-          <span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">Baseline videos</span>
-          <button id="addBaseline" class="inline-flex items-center gap-1 font-label-md text-label-md text-primary hover:text-on-surface">
-            <span class="material-symbols-outlined text-[16px]">add</span>Add video
-          </button>
-        </div>
-        <input id="baselineInput" type="file" accept="video/*" class="hidden"/>
-        <div id="baselineList" class="grid sm:grid-cols-2 gap-space-sm"></div>
-        <p class="font-label-sm text-label-sm text-outline mt-space-sm">
-          5–10 seconds each. These are measured and kept on this machine; the browser
-          stores only their names and ids.
-        </p>
-      </div>
-
-      <p id="profileSaved" class="font-label-sm text-label-sm text-outline">Saved automatically.</p>
-    </div>
-  </main>
+</div>
+</div>
+</div>
 </div>
 
-<script src="app.js"></script>
+<!-- ===================== dog ===================== -->
+<div data-view="dog" class="hidden w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+<!-- Top Navigation & Return Breadcrumb -->
+<nav aria-label="Breadcrumb" class="flex items-center justify-between">
+<div class="flex items-center gap-2 text-on-surface-variant font-label-md text-label-md">
+<a class="inline-flex items-center gap-1.5 hover:text-primary transition-colors py-1" href="#">
+<span class="material-symbols-outlined text-[18px]">pets</span>
+<span>My Dogs</span>
+</a>
+<span class="text-outline-variant font-normal">/</span>
+<span class="text-on-surface font-semibold bg-surface-container px-2.5 py-0.5 rounded-full" data-field="dogName">this dog</span>
+</div>
+
+</nav>
+
+<div id="toast" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-lg w-[90%]">
+  <div class="flex items-start gap-3 px-4 py-3 rounded-xl bg-error-container text-on-error-container shadow-lg">
+    <span class="material-symbols-outlined text-[20px] shrink-0">warning</span>
+    <p id="toastText" class="font-body-sm text-body-sm flex-1"></p>
+    <button id="toastClose" type="button" class="material-symbols-outlined text-[18px] shrink-0 hover:opacity-70">close</button>
+  </div>
+</div>
+<!-- Profile header -->
+<header class="bg-surface-container-lowest rounded-3xl p-6 sm:p-8 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all">
+<div class="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+<div class="relative shrink-0">
+
+<div data-avatar="dog" class="w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-secondary-container
+ text-on-secondary-container flex items-center justify-center shadow-md
+ ring-4 ring-surface-container-low overflow-hidden bg-cover bg-center cursor-pointer"
+ title="Click to add a photo">
+  <span data-field="dogInitial" class="font-display-lg text-display-lg font-semibold">?</span>
+</div>
+<input data-input="photo" type="file" accept="image/*" class="hidden"/>
+<span class="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-surface-container-lowest flex items-center justify-center text-primary shadow-sm" title="Active canine">
+<span class="material-symbols-outlined text-[16px]">verified</span>
+</span>
+</div>
+<div class="space-y-1.5">
+<div class="flex items-center gap-3 flex-wrap">
+<h1 class="font-headline-lg text-headline-lg sm:text-[32px] text-on-surface font-bold tracking-tight" data-field="dogName">this dog</h1>
+<span class="font-label-md text-label-md bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full font-semibold">Active Baseline</span>
+</div>
+<p class="font-body-lg text-body-lg text-on-surface-variant"><span data-field="dogMeta">no details yet</span></p>
+
+</div>
+</div>
+<!-- Action Buttons -->
+<div class="flex items-center gap-3 self-stretch sm:self-auto shrink-0">
+<button class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-lg text-label-lg px-5 py-2.5 rounded-full shadow-sm transition-all active:scale-[0.98]" type="button">
+<span class="material-symbols-outlined text-[18px]">share</span>
+<span>Share Profile</span>
+</button>
+<button class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary-container text-on-primary font-label-lg text-label-lg px-6 py-2.5 rounded-full shadow-sm transition-all active:scale-[0.98]" type="button">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+<span>Edit Profile</span>
+</button>
+</div>
+</header>
+<!-- Quick Status Metric Banners -->
+<section aria-label="Quick vitals" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+<div class="bg-surface-container-lowest p-4 rounded-2xl shadow-sm flex items-center gap-3.5">
+<div class="w-10 h-10 rounded-xl bg-secondary-container/60 text-on-secondary-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">cake</span>
+</div>
+<div>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline block font-semibold">Age</span>
+<span class="font-label-lg text-label-lg text-on-surface font-semibold" data-field="statAge">—</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-4 rounded-2xl shadow-sm flex items-center gap-3.5">
+<div class="w-10 h-10 rounded-xl bg-primary-fixed text-on-primary-fixed-variant flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">scale</span>
+</div>
+<div>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline block font-semibold">Breed</span>
+<span class="font-label-lg text-label-lg text-on-surface font-semibold" data-field="statBreed">—</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-4 rounded-2xl shadow-sm flex items-center gap-3.5">
+<div class="w-10 h-10 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">medical_services</span>
+</div>
+<div>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline block font-semibold">Baselines</span>
+<span class="font-label-lg text-label-lg text-on-surface font-semibold" data-field="statBaselines">0</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-4 rounded-2xl shadow-sm flex items-center gap-3.5">
+<div class="w-10 h-10 rounded-xl bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">smart_toy</span>
+</div>
+<div>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline block font-semibold">Chats</span>
+<span class="font-label-lg text-label-lg text-on-surface font-semibold" data-field="statChats">0</span>
+</div>
+</div>
+</section>
+<!-- Main Content Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+<!-- Left Column (Basics, Health, Training, Behavior) -->
+<div class="lg:col-span-7 flex flex-col gap-6">
+<!-- 1. Basics Card -->
+<article class="bg-surface-container-lowest rounded-2xl p-6 sm:p-7 shadow-sm transition-shadow hover:shadow-md">
+<div class="flex items-center justify-between pb-4 mb-4 bg-surface-container-low/40 -mx-6 -mt-6 px-6 pt-5 rounded-t-2xl">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-[22px] text-primary">badge</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Basics</h2>
+</div>
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider font-semibold">Profile Sheet</span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4"><div class="bg-surface-container-low p-4 rounded-xl">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline block mb-1 font-semibold">Name</span>
+<input data-field="name" placeholder="What do you call them?" rows="1"
+ class="w-full bg-transparent font-body-md text-body-md text-on-surface font-medium
+ border border-transparent rounded-lg px-1.5 -mx-1.5 py-0.5 resize-none
+ placeholder:text-outline/70 placeholder:font-normal
+ focus:outline-none focus:border-outline-variant focus:bg-surface-container-lowest
+ transition-colors"></input>
+</div><div class="bg-surface-container-low p-4 rounded-xl">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline block mb-1 font-semibold">Breed</span>
+<input data-field="breed" placeholder="Labrador, collie cross, not sure…" rows="1"
+ class="w-full bg-transparent font-body-md text-body-md text-on-surface font-medium
+ border border-transparent rounded-lg px-1.5 -mx-1.5 py-0.5 resize-none
+ placeholder:text-outline/70 placeholder:font-normal
+ focus:outline-none focus:border-outline-variant focus:bg-surface-container-lowest
+ transition-colors"></input>
+</div><div class="bg-surface-container-low p-4 rounded-xl">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline block mb-1 font-semibold">Age</span>
+<input data-field="age" placeholder="2 years, 8 months, a puppy…" rows="1"
+ class="w-full bg-transparent font-body-md text-body-md text-on-surface font-medium
+ border border-transparent rounded-lg px-1.5 -mx-1.5 py-0.5 resize-none
+ placeholder:text-outline/70 placeholder:font-normal
+ focus:outline-none focus:border-outline-variant focus:bg-surface-container-lowest
+ transition-colors"></input>
+</div></div>
+</article>
+<!-- 2. Health & Wellness Card -->
+<article class="bg-surface-container-lowest rounded-2xl p-6 sm:p-7 shadow-sm transition-shadow hover:shadow-md">
+<div class="flex items-center justify-between pb-4 mb-5 bg-surface-container-low/40 -mx-6 -mt-6 px-6 pt-5 rounded-t-2xl">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-[22px] text-primary">vital_signs</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Health &amp; Wellness</h2>
+</div>
+<span class="font-label-md text-label-md px-3 py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-semibold">Up to Date</span>
+</div>
+<div class="grid grid-cols-1 gap-4"><div class="bg-surface-container-low p-4 rounded-xl">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline block mb-1 font-semibold">Health</span>
+<textarea data-field="health" placeholder="Anything a vet has said, or nothing yet." rows="3"
+ class="w-full bg-transparent font-body-md text-body-md text-on-surface font-medium
+ border border-transparent rounded-lg px-1.5 -mx-1.5 py-0.5 resize-none
+ placeholder:text-outline/70 placeholder:font-normal
+ focus:outline-none focus:border-outline-variant focus:bg-surface-container-lowest
+ transition-colors"></textarea>
+</div></div>
+</article>
+<!-- 3. Training History Card -->
+<article class="bg-surface-container-lowest rounded-2xl p-6 sm:p-7 shadow-sm transition-shadow hover:shadow-md">
+<div class="flex items-center justify-between pb-4 mb-5 bg-surface-container-low/40 -mx-6 -mt-6 px-6 pt-5 rounded-t-2xl">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-[22px] text-primary">school</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Training History</h2>
+</div>
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider font-semibold">Skills Matrix</span>
+</div>
+<div class="grid grid-cols-1 gap-4"><div class="bg-surface-container-low p-4 rounded-xl">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline block mb-1 font-semibold">Training</span>
+<textarea data-field="training" placeholder="What they know, and how you taught it." rows="3"
+ class="w-full bg-transparent font-body-md text-body-md text-on-surface font-medium
+ border border-transparent rounded-lg px-1.5 -mx-1.5 py-0.5 resize-none
+ placeholder:text-outline/70 placeholder:font-normal
+ focus:outline-none focus:border-outline-variant focus:bg-surface-container-lowest
+ transition-colors"></textarea>
+</div></div>
+</article>
+<!-- 4. Behavior Notes Card -->
+<article class="bg-surface-container-lowest rounded-2xl p-6 sm:p-7 shadow-sm transition-shadow hover:shadow-md">
+<div class="flex items-center justify-between pb-4 mb-5 bg-surface-container-low/40 -mx-6 -mt-6 px-6 pt-5 rounded-t-2xl">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-[22px] text-primary">psychology</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Behavior Notes</h2>
+</div>
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider font-semibold">Triggers &amp; Regulation</span>
+</div>
+<div class="grid grid-cols-1 gap-4"><div class="bg-surface-container-low p-4 rounded-xl">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline block mb-1 font-semibold">Known triggers</span>
+<textarea data-field="triggers" placeholder="Doorbell, other dogs, the vacuum…" rows="2"
+ class="w-full bg-transparent font-body-md text-body-md text-on-surface font-medium
+ border border-transparent rounded-lg px-1.5 -mx-1.5 py-0.5 resize-none
+ placeholder:text-outline/70 placeholder:font-normal
+ focus:outline-none focus:border-outline-variant focus:bg-surface-container-lowest
+ transition-colors"></textarea>
+</div><div class="bg-surface-container-low p-4 rounded-xl">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline block mb-1 font-semibold">Anything else</span>
+<textarea data-field="notes" placeholder="What you would tell a new sitter." rows="3"
+ class="w-full bg-transparent font-body-md text-body-md text-on-surface font-medium
+ border border-transparent rounded-lg px-1.5 -mx-1.5 py-0.5 resize-none
+ placeholder:text-outline/70 placeholder:font-normal
+ focus:outline-none focus:border-outline-variant focus:bg-surface-container-lowest
+ transition-colors"></textarea>
+</div></div>
+</article>
+</div>
+<!-- Right Column (Teach Pupchat Baselines & Past Chats) -->
+<div class="lg:col-span-5 flex flex-col gap-6">
+<!-- 5. Teach Pupchat about this dog (Video Baseline Library) -->
+<article class="bg-surface-container-lowest rounded-2xl p-6 sm:p-7 shadow-sm transition-shadow hover:shadow-md">
+<div class="flex items-center justify-between pb-4 mb-2 bg-surface-container-low/40 -mx-6 -mt-6 px-6 pt-5 rounded-t-2xl">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-[22px] text-primary">videocam</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Teach Pupchat about this dog</h2>
+</div>
+<span class="font-label-sm text-label-sm bg-secondary-container text-on-secondary-container px-2.5 py-0.5 rounded-full font-bold" data-field="baselineCount">0 saved</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-5 leading-relaxed">
+            A short clip of a calm, ordinary moment. It gives Pupchat something to compare against, so it can say what is unusual for this dog rather than just what is unusual for dogs.
+          </p>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+<!-- Video Card 1 -->
+
+<!-- Video Card 2 -->
+
+<!-- Video Card 3 -->
+
+<!-- Video Card 4: Upload Tile -->
+<button class="aspect-video w-full rounded-2xl bg-surface-container-low hover:bg-secondary-container/40 transition-colors flex flex-col items-center justify-center p-4 text-center group cursor-pointer" type="button">
+<div class="w-10 h-10 rounded-full bg-surface-container-lowest group-hover:bg-primary group-hover:text-on-primary text-primary flex items-center justify-center mb-1.5 transition-colors shadow-sm">
+<span class="material-symbols-outlined text-[20px]">add</span>
+</div>
+<span class="font-label-md text-label-md text-on-surface font-semibold">+ Add video</span>
+<span class="font-label-sm text-label-sm text-outline mt-0.5">Upload baseline video</span>
+</button>
+</div>
+</article>
+<!-- 6. Past chats -->
+<article class="bg-surface-container-lowest rounded-2xl p-6 sm:p-7 shadow-sm transition-shadow hover:shadow-md">
+<div class="flex items-center justify-between pb-4 mb-4 bg-surface-container-low/40 -mx-6 -mt-6 px-6 pt-5 rounded-t-2xl">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-[22px] text-primary">forum</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Past chats</h2>
+</div>
+<a class="font-label-sm text-label-sm text-primary hover:text-on-surface transition-colors font-semibold" href="#">View All</a>
+</div>
+<div class="space-y-2.5" role="list">
+
+
+
+
+</div>
+<div class="mt-4 pt-3 flex items-center justify-center">
+<a class="inline-flex items-center gap-2 text-primary hover:text-on-surface font-label-md text-label-md py-1.5 transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">add_comment</span>
+<span>Start a new chat about this dog</span>
+</a>
+</div>
+</article>
+</div>
+</div>
+</div>
+</div></main></div>
+<template id="tpl-dog-row"><a class="flex items-center gap-space-sm p-2 rounded-xl text-on-surface-variant hover:bg-surface-container hover:text-on-surface border border-transparent transition-all group" data-path="dog-profile" href="#"><div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center font-label-md text-label-md text-on-secondary-container font-semibold ring-1 ring-outline-variant/60">M</div><div class="flex-1 min-w-0 text-left"><p class="font-label-md text-label-md text-on-surface truncate group-hover:text-primary transition-colors">Milo</p><p class="font-body-sm text-body-sm text-outline truncate">Golden Retriever · 2y</p></div><span class="material-symbols-outlined text-[18px] text-outline opacity-0 group-hover:opacity-100 transition-opacity">arrow_forward_ios</span></a></template>
+
+<template id="tpl-chat-row"><a class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface border border-transparent transition-all group" data-path="chat-barking-at-guests" href="#"><span class="material-symbols-outlined text-[18px] text-outline group-hover:text-primary transition-colors">chat_bubble_outline</span><span class="font-body-sm text-body-sm truncate flex-1">Barking at guests</span></a></template>
+
+<template id="tpl-user-turn"><div class="flex flex-col items-end space-y-space-sm pl-8 sm:pl-16">
+<!-- Attached Video Card Preview -->
+<div class="w-full max-w-md rounded-2xl overflow-hidden bg-surface-container-lowest shadow-md group transition-transform duration-200 hover:-translate-y-0.5">
+<div class="relative w-full aspect-video bg-inverse-surface overflow-hidden">
+<video data-clip class="w-full h-full object-cover" muted loop playsinline preload="metadata"></video>
+<!-- Translucent Gradient Overlay -->
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none"></div>
+<!-- Video Play Overlay Center -->
+<button aria-label="Play video" class="absolute inset-0 m-auto w-12 h-12 rounded-full bg-surface-container-lowest/80 backdrop-blur-md flex items-center justify-center text-on-surface shadow-lg transition-all duration-200 hover:scale-110 hover:bg-surface-container-lowest" type="button">
+<span class="material-symbols-outlined text-[26px] ml-0.5" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+<!-- Badges on Video -->
+<div class="absolute bottom-3 left-3 flex items-center gap-2">
+<span class="px-2 py-0.5 rounded-md bg-inverse-surface/80 text-inverse-on-surface font-label-sm text-label-sm backdrop-blur-sm">
+              0:14
+            </span>
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface-container-lowest/80 text-on-surface font-label-sm text-label-sm backdrop-blur-sm truncate max-w-[170px]">
+<span class="material-symbols-outlined text-[14px]">videocam</span>
+              front_door_barking.mp4
+            </span>
+</div>
+<div class="absolute top-3 right-3">
+<span class="px-2 py-0.5 rounded-full bg-error text-on-error font-label-sm text-label-sm flex items-center gap-1 shadow-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-on-error animate-ping"></span>
+              REC
+            </span>
+</div>
+</div>
+</div>
+<!-- User Text Prompt Bubble -->
+<div class="bg-primary text-on-primary rounded-2xl rounded-tr-sm px-space-lg py-space-md shadow-sm max-w-lg text-left">
+<p class="font-body-md text-body-md leading-relaxed text-on-primary">
+          Milo does this every time someone comes to the door. What is he telling me?
+        </p>
+</div>
+<!-- Timestamp & Status -->
+<div class="flex items-center gap-1 font-label-sm text-label-sm text-outline pr-1">
+<span>Today, 2:14 PM</span>
+<span class="material-symbols-outlined text-[14px] text-primary">done_all</span>
+</div>
+</div></template>
+
+<template id="tpl-answer-card"><div class="w-full flex flex-col space-y-space-md">
+<!-- Assistant Header Badge -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-9 h-9 rounded-xl bg-surface-container-highest flex items-center justify-center p-1.5 shadow-sm">
+<img alt="Pupchat AI Logo" class="w-full h-full object-contain" src="assets/logo.png" alt-src="AEtjO1XjrtmQHmL_al45HDv9W5fIZXuXUqb6brsXQ-pD2uxE0M0XVlC1S3_NPHuSRp8OzWhZ7Ga0pdNwLXer2TrFQhW9WkDqzCpCnlHJg33yScZle1dbS64gLxXJyzLqZI5KXtd7ACVuInY0l5d89ARJ0GT2nI8Xr89EMdza8IOnbQYQskKohEhDJKfAkUeHhumqMA1HrxNN6kEPooF_2QGPCrKmFZuYvBiVNVVmC1ztAF-_W3zyXc3okZrYWNbr"/>
+</div>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Pupchat AI</h2>
+<p class="font-label-sm text-label-sm text-outline">Behavioral Breakdown · Milo</p>
+</div>
+</div>
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px]">smart_display</span>
+          Video Analyzed
+        </span>
+</div>
+<!-- Structured Insight Card Container -->
+<article class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-md space-y-space-lg transition-all">
+<!-- Summary Micro-banner -->
+<div class="p-space-md rounded-xl bg-surface-container-low flex items-start gap-space-sm">
+<span class="material-symbols-outlined text-primary text-[22px] mt-0.5">psychology</span>
+<div class="space-y-0.5 flex-1">
+<div class="font-label-md text-label-md text-on-surface font-bold uppercase tracking-wider">Primary Assessment</div>
+<p class="font-body-md text-body-md text-on-surface-variant">
+              Milo is displaying <strong class="text-on-surface font-semibold">alert barking with mild territorial vigilance</strong>, not direct aggression. He feels responsible for reporting arrival events at the front perimeter and is seeking acknowledgment from his pack.
+            </p>
+</div>
+</div>
+<!-- Visual Signal Diagram: Posture & Arousal Level -->
+
+<!-- SECTION 1: WHAT I SEE -->
+<section class="space-y-space-sm">
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-on-surface font-label-sm text-label-sm uppercase tracking-wider font-semibold">
+<span class="material-symbols-outlined text-[16px] text-tertiary">visibility</span>
+<span>What I See in the Video</span>
+</div>
+<ul class="space-y-2.5 pl-1 text-on-surface font-body-md text-body-md leading-relaxed">
+<li class="flex items-start gap-2.5">
+<span class="w-1.5 h-1.5 rounded-full bg-primary mt-2.5 shrink-0"></span>
+<span><strong>Stiff, upright posture</strong> facing the glass window, with center of gravity shifted forward.</span>
+</li>
+<li class="flex items-start gap-2.5">
+<span class="w-1.5 h-1.5 rounded-full bg-primary mt-2.5 shrink-0"></span>
+<span><strong>Tail held high with rapid, rigid wagging</strong> — signaling alertness rather than joyful excitement.</span>
+</li>
+<li class="flex items-start gap-2.5">
+<span class="w-1.5 h-1.5 rounded-full bg-primary mt-2.5 shrink-0"></span>
+<span><strong>Forward-facing ears</strong> and intermittent sharp vocalizations with pauses between alerts.</span>
+</li>
+<li class="flex items-start gap-2.5">
+<span class="w-1.5 h-1.5 rounded-full bg-primary mt-2.5 shrink-0"></span>
+<span><strong>Head turning back toward you</strong> every 3–4 barks to check your reaction and verify if you registered the threat.</span>
+</li>
+</ul>
+</section>
+<!-- SECTION 2: WHAT IT LIKELY MEANS -->
+<section class="space-y-space-sm">
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-on-surface font-label-sm text-label-sm uppercase tracking-wider font-semibold">
+<span class="material-symbols-outlined text-[16px] text-primary">lightbulb</span>
+<span>What It Likely Means</span>
+</div>
+<div class="p-space-md rounded-xl bg-surface-container-low font-body-md text-body-md text-on-surface leading-relaxed">
+            Milo believes he is on sentry duty. The glance backward is a crucial tell: he is not in a blind panic or reactive frenzy. He is <strong class="text-primary font-semibold">relaying information</strong>. Because no one stepped in to formally relieve him of perimeter guard, he kept escalating the siren.
+          </div>
+</section>
+<!-- SECTIONS 3 & 4: DO vs DON'T (Two Column Asymmetry on desktop) -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md pt-space-xs">
+<!-- DO (Immediate Tips) -->
+<div class="rounded-xl bg-secondary-container/40 p-space-md space-y-space-sm flex flex-col justify-between">
+<div class="space-y-space-sm">
+<div class="flex items-center gap-2">
+<span class="w-6 h-6 rounded-full bg-primary text-on-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</span>
+<span class="font-label-lg text-label-lg text-on-surface font-bold uppercase tracking-wide">Do (Immediate Tips)</span>
+</div>
+<ul class="space-y-2 text-on-surface font-body-sm text-body-sm leading-relaxed">
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-primary text-[16px] shrink-0 mt-0.5">arrow_right</span>
+<span><strong>Acknowledge once calmly</strong> (“Thank you, Milo”) to validate the report, then calmly redirect him to his designated place mat.</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-primary text-[16px] shrink-0 mt-0.5">arrow_right</span>
+<span><strong>Reward with high-value treats</strong> only after 3 full seconds of calm silence and four paws on the mat.</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-primary text-[16px] shrink-0 mt-0.5">arrow_right</span>
+<span><strong>Close sheer blinds</strong> during peak delivery hours (2 PM – 5 PM) to remove visual triggers while training.</span>
+</li>
+</ul>
+</div>
+<div class="pt-2">
+<span class="font-label-sm text-label-sm text-outline italic">Success rate: 82% over 14 days</span>
+</div>
+</div>
+<!-- DON'T -->
+<div class="rounded-xl bg-error-container/40 p-space-md space-y-space-sm flex flex-col justify-between">
+<div class="space-y-space-sm">
+<div class="flex items-center gap-2">
+<span class="w-6 h-6 rounded-full bg-error text-on-error flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">close</span>
+</span>
+<span class="font-label-lg text-label-lg text-on-surface font-bold uppercase tracking-wide">Don't</span>
+</div>
+<ul class="space-y-2 text-on-surface font-body-sm text-body-sm leading-relaxed">
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-error text-[16px] shrink-0 mt-0.5">close</span>
+<span><strong>Don't yell or shout “NO!”</strong> — Dogs perceive loud human vocalizations as joining in the communal barking chorus.</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-error text-[16px] shrink-0 mt-0.5">close</span>
+<span><strong>Don't physically push or shove him</strong> away from the door glass; tactile wrestling raises adrenal arousal.</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-error text-[16px] shrink-0 mt-0.5">close</span>
+<span><strong>Don't repeat his name while frantic</strong> — this turns his name into a high-anxiety trigger word.</span>
+</li>
+</ul>
+</div>
+<div class="pt-2">
+<span class="font-label-sm text-label-sm text-outline italic">Prevents escalated barrier frustration</span>
+</div>
+</div>
+</div>
+<!-- Follow-up Suggestion Chips -->
+<div class="pt-space-sm space-y-2">
+<p class="font-label-sm text-label-sm text-outline uppercase tracking-wider font-semibold">Suggested next questions</p>
+<div class="flex flex-wrap gap-2">
+<button class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-label-md transition-all shadow-sm hover:scale-[1.02]" type="button">
+<span class="material-symbols-outlined text-[16px] text-primary">navigation</span>
+<span>Tell me more about the Place Command</span>
+</button>
+<button class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-label-md transition-all shadow-sm hover:scale-[1.02]" type="button">
+<span class="material-symbols-outlined text-[16px] text-primary">volume_off</span>
+<span>How do I teach a quiet cue?</span>
+</button>
+<button class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-label-md transition-all shadow-sm hover:scale-[1.02]" type="button">
+<span class="material-symbols-outlined text-[16px] text-primary">video_library</span>
+<span>Analyze another video</span>
+</button>
+</div>
+</div>
+<!-- Card Footer Micro-Interactions -->
+<div class="flex items-center justify-between pt-space-xs text-outline font-label-sm text-label-sm">
+<div class="flex items-center gap-space-sm">
+<button class="inline-flex items-center gap-1 hover:text-on-surface transition-colors" title="Helpful response" type="button">
+<span class="material-symbols-outlined text-[16px]">thumb_up</span>
+<span>Helpful</span>
+</button>
+<button class="inline-flex items-center gap-1 hover:text-on-surface transition-colors" title="Save to Milo's training notes" type="button">
+<span class="material-symbols-outlined text-[16px]">bookmark_border</span>
+<span>Save to Milo's Plan</span>
+</button>
+</div>
+<button class="inline-flex items-center gap-1 hover:text-on-surface transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">content_copy</span>
+<span>Copy</span>
+</button>
+</div>
+</article>
+</div></template>
+
+<template id="tpl-day-break"><div class="flex items-center justify-center gap-space-md my-space-xs">
+<div class="h-px bg-surface-container-highest flex-1 max-w-[120px]"></div>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline bg-surface-container-low px-3 py-1 rounded-full">Today · 2:14 PM</span>
+<div class="h-px bg-surface-container-highest flex-1 max-w-[120px]"></div>
+</div></template>
+
+<template id="tpl-baseline-tile"><div class="group relative rounded-2xl overflow-hidden bg-surface-container-high transition-transform hover:-translate-y-0.5 shadow-sm">
+<div class="aspect-video w-full bg-cover bg-center relative" data-alt="A calm Golden Retriever resting peacefully on a neutral soft woven wool rug in an airy living room, soft morning sunlight, serene domestic warm interior photography." data-thumb="">
+<div class="absolute inset-0 bg-gradient-to-t from-inverse-surface/80 via-transparent to-transparent"></div>
+<span class="absolute top-2 right-2 bg-inverse-surface/75 text-inverse-on-surface font-label-sm text-label-sm px-2 py-0.5 rounded-full backdrop-blur-sm">0:30</span>
+<div class="absolute bottom-2 left-2 right-2 text-inverse-on-surface">
+<p class="font-label-md text-label-md font-semibold truncate">Relaxed at home</p>
+<p class="font-label-sm text-label-sm opacity-80 truncate">Calm lying on rug</p>
+</div>
+</div>
+</div></template>
+
+<template id="tpl-past-chat-row"><a class="p-3.5 rounded-xl bg-surface-container-low hover:bg-secondary-container/30 transition-all flex items-center justify-between group" href="#">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-9 h-9 rounded-lg bg-surface-container-lowest flex items-center justify-center text-primary shrink-0 shadow-sm">
+<span class="material-symbols-outlined text-[18px]">chat_bubble_outline</span>
+</div>
+<div class="min-w-0 text-left">
+<p class="font-body-md text-body-md text-on-surface font-semibold truncate group-hover:text-primary transition-colors">Barking at guests</p>
+<p class="font-body-sm text-body-sm text-outline">Today • 4 messages</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-[18px] text-outline group-hover:translate-x-0.5 transition-transform">chevron_right</span>
+</a></template>
+
+<script type="module" src="js/main.js"></script>
 </body></html>
