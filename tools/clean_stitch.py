@@ -245,6 +245,9 @@ def main() -> None:
   <p class="font-label-sm text-label-sm text-outline/70 leading-snug">
     Non-commercial demo. Research prototype, not a product.</p>
   <p id="shareNotice" class="hidden font-label-sm text-label-sm text-outline/80 leading-snug"></p>
+  <button id="shareBtn" type="button"
+    class="hidden mt-1 inline-flex items-center gap-1.5 font-label-sm text-label-sm text-primary hover:text-on-surface transition-colors">
+    <span class="material-symbols-outlined text-[16px]">qr_code_2</span>Open on your phone</button>
 </div>""", "user block -> health + credits", tag="<a")
 
     # ---------------------------------------------------------------- dead controls
@@ -459,6 +462,19 @@ def main() -> None:
     # the chat store, which created a chat titled "(error)" for every rejected upload and
     # read exactly like history not being saved.
     p.text("<!-- Profile header -->", """
+<div id="sharePanel" class="hidden fixed inset-0 z-50 bg-inverse-surface/60 backdrop-blur-sm
+ flex items-center justify-center p-4">
+  <div class="w-full max-w-sm rounded-2xl bg-surface-container-lowest shadow-2xl p-6 space-y-4">
+    <div class="flex items-start justify-between gap-3">
+      <h2 class="font-headline-sm text-headline-sm text-on-surface">Open on your phone</h2>
+      <button id="sharePanelClose" type="button" title="Close"
+        class="material-symbols-outlined text-[20px] text-outline hover:text-on-surface">close</button>
+    </div>
+    <div id="shareBody" class="space-y-3">
+      <p class="font-body-sm text-body-sm text-outline">Checking…</p>
+    </div>
+  </div>
+</div>
 <div id="videoModal" class="hidden fixed inset-0 z-50 bg-inverse-surface/80 backdrop-blur-sm
  flex items-center justify-center p-4">
   <div class="relative w-full max-w-3xl">

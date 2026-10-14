@@ -11,6 +11,7 @@
 import { api, ApiError } from "./api.js";
 import * as chat from "./chat.js";
 import * as router from "./router.js";
+import { wireShare } from "./share.js";
 import * as store from "./store.js";
 import { state } from "./store.js";
 import * as views from "./views.js";
@@ -327,6 +328,7 @@ async function boot() {
   wireDogEditing();
   wireComposers();
   wireVideoModal();
+  wireShare();
   $("toastClose")?.addEventListener("click", () => $("toast").classList.add("hidden"));
   store.subscribe(renderAll);
 

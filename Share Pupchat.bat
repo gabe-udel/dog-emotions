@@ -30,6 +30,11 @@ setlocal enabledelayedexpansion
 
 set PORT=8000
 set PUPCHAT_SHARE=1
+REM The server reads this file to learn its own public address, which is
+REM random and new on every run. Deleting it first matters: yesterday's log
+REM parses perfectly and yields a hostname that is dead.
+set PUPCHAT_TUNNEL_LOG=%~dp0outputs\pupchat\tunnel.log
+if exist "%PUPCHAT_TUNNEL_LOG%" del /q "%PUPCHAT_TUNNEL_LOG%"
 
 REM ------------------------------------------------- python environment
 if not exist ".venv\Scripts\python.exe" (
@@ -137,11 +142,13 @@ echo   The first question about a new clip takes about 90 seconds,
 echo   because the keypoint model runs on this machine's CPU. Only one
 echo   clip is measured at a time; the rest queue.
 echo.
+echo   On the Pupchat window, press "Open on your phone" for a QR code.
+echo.
 echo   Closing this window takes the demo offline.
 echo ===================================================================
 echo.
 
-cloudflared tunnel --url "http://127.0.0.1:%PORT%"
+cloudflared tunnel --url "http://127.0.0.1:%PORT%" --logfile "%PUPCHAT_TUNNEL_LOG%"
 
 REM ------------------------------------------------- tidy up
 echo.

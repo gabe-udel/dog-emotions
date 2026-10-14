@@ -45,7 +45,9 @@ from pathlib import Path, PurePosixPath
 # Imported locally they are invisible there, and UploadFile fails to resolve at runtime.
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi import Response
+from fastapi.responses import (FileResponse, JSONResponse,
+                               RedirectResponse)
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -55,6 +57,7 @@ from .guard import (AnalysisQueue, Budget, BudgetExceeded, QueueFull, client_ip,
                     is_local, read_capped, sweep)
 from .jobs import JobStore, estimate, record_timing
 from .library import PHOTO_DIR, library, profile_text
+from .share import public_url, qr_png
 from .pipeline import analyse, cache_dir, probe, video_hash
 
 WEBAPP = Path(__file__).resolve().parent / "webapp"
@@ -592,6 +595,47 @@ def build_app():
             raise HTTPException(404, "no chat with that id")
         return {"ok": True}
 
+    # ------------------------------------------------------------------ sharing
+    def require_local(request: Request) -> None:
+        """Local only, NOT owner-only.
+
+        If the token alone opened these, the first visitor handed the link could
+        re-serve the QR - and the QR is a credential. The panel is only ever needed on
+        the machine running the server, so this is strictly safer at no cost.
+        """
+        if not is_local(client_ip(request)):
+            raise HTTPException(403, "the phone link is only available on the computer "
+                                     "running Pupchat")
+
+    @app.get("/api/share/url")
+    def api_share_url(request: Request):
+        require_local(request)
+        url, reason = public_url()
+        return {"url": f"{url}/?k={lib.owner_token()}" if url else None,
+                "plain_url": url, "reason": reason,
+                "qr": "/api/share/qr.png" if url else None}
+
+    @app.get("/api/share/qr.png")
+    def api_share_qr(request: Request):
+        require_local(request)
+        url, reason = public_url()
+        if not url:
+            raise HTTPException(503, reason)
+        try:
+            png = qr_png(f"{url}/?k={lib.owner_token()}")
+        except RuntimeError as e:
+            raise HTTPException(503, str(e))
+        # The hostname changes with every tunnel, and so does the token after a rotate.
+        return Response(png, media_type="image/png",
+                        headers={"Cache-Control": "no-store"})
+
+    @app.post("/api/share/rotate")
+    def api_share_rotate(request: Request):
+        """Kill a leaked code. Anyone holding the old link becomes a visitor again."""
+        require_local(request)
+        lib.rotate_token()
+        return {"ok": True}
+
     # ------------------------------------------------------------------ jobs
     jobs = JobStore()
     app.state.jobs = jobs
@@ -763,13 +807,25 @@ def port_is_taken(port: int = PORT, host: str = "127.0.0.1") -> bool:
 
 
 def main() -> None:
+    import threading
+    import webbrowser
+
     import uvicorn
     if port_is_taken():
         raise SystemExit(BUSY_PORT_HELP.format(port=PORT))
     print("=" * 74)
-    print(f"Pupchat API   http://127.0.0.1:{PORT}     docs: /docs")
+    print(f"Pupchat      http://127.0.0.1:{PORT}     docs: /docs")
     print(LICENCE_NOTICE)
+    if share_mode():
+        print("Share mode: the page will offer a QR code once cloudflared connects.")
     print("=" * 74)
+
+    # Opened from here, and only after uvicorn has had a moment to bind. The launcher
+    # used to do it with `start ""` before the server process had even imported torch,
+    # which is why the first page load showed a connection error you had to refresh.
+    if not os.getenv("PUPCHAT_NO_BROWSER"):
+        threading.Timer(1.5, webbrowser.open, (f"http://127.0.0.1:{PORT}/",)).start()
+
     uvicorn.run(build_app(), host="127.0.0.1", port=PORT, log_level="info")
 
 

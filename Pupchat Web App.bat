@@ -47,7 +47,7 @@ echo   Clips must be between 5 and 10 seconds.
 echo   Leave this window open. Press Ctrl+C or close it to stop.
 echo.
 
-start "" "http://127.0.0.1:8000"
+REM The server opens the browser once it is actually listening.
 ".venv\Scripts\python.exe" -m pupchat.api
 
 echo.
