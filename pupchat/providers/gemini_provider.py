@@ -23,7 +23,8 @@ import base64
 import copy
 from pathlib import Path
 
-from ..config import system_prompt
+from ..config import grounding_enabled, system_prompt
+from ..sources import extract, mark
 from .base import MEDIA_VIDEO, Provider, ProviderResult, normalise_usage
 
 INLINE_LIMIT_BYTES = 100 * 1024 * 1024
@@ -91,13 +92,19 @@ class GeminiProvider(Provider):
                                  "parts": [{"text": turn["text"]}]})
             contents.append({"role": "user", "parts": [{"text": question}]})
 
+        config: dict = {
+            "system_instruction": system_prompt(),
+            "max_output_tokens": cfg.gemini.max_output_tokens,
+        }
+        # Off unless asked for. A grounded request can cost more per answer than a plain
+        # one, so turning it on is the owner's decision to make knowingly.
+        if grounding_enabled():
+            config["tools"] = [{"google_search": {}}]
+
         return {
             "model": cfg.gemini.model,
             "contents": contents,
-            "config": {
-                "system_instruction": system_prompt(),
-                "max_output_tokens": cfg.gemini.max_output_tokens,
-            },
+            "config": config,
         }
 
     def send(self, payload, cfg, client=None) -> ProviderResult:
@@ -141,6 +148,13 @@ class GeminiProvider(Provider):
                 finish = getattr(fr, "name", None) or str(fr)
                 break
 
+        # Sources come from the API's own grounding metadata, never from the answer
+        # text. That is what makes an invented link impossible rather than unlikely:
+        # there is no code path that could produce one.
+        sources, search_html = extract(resp)
+        if sources:
+            answer = mark(answer, resp, sources)
+
         return ProviderResult(
             answer=answer,
             usage=normalise_usage(
@@ -149,7 +163,9 @@ class GeminiProvider(Provider):
                 g("cached_content_token_count", "cached_tokens"),
                 thinking),
             raw=resp,
-            finish_reason=finish)
+            finish_reason=finish,
+            sources=sources,
+            search_html=search_html)
 
     def redact(self, payload, keep_chars: int = 24) -> dict:
         p = copy.deepcopy(payload)

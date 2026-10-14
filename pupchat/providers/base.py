@@ -34,6 +34,16 @@ class ProviderResult:
     finish_reason: str = ""
     """Provider's own string. "MAX_TOKENS" and the like mean the answer is cut off, and
     a truncated answer that is presented as a whole one is a silent failure."""
+    sources: list = field(default_factory=list)
+    """Pages the provider says it used, each {n, index, title, uri, domain}.
+
+    Built from grounding metadata and never from the answer text, which is what makes an
+    invented link impossible rather than unlikely. Empty whenever the model did not
+    search, which is common and not an error."""
+    search_html: str | None = None
+    """Google's search-suggestions markup, which its terms require be shown alongside a
+    grounded answer. Third-party HTML, so the page renders it in a sandboxed iframe
+    rather than through innerHTML."""
 
     @property
     def truncated(self) -> bool:

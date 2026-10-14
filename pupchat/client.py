@@ -210,6 +210,9 @@ def ask_pupchat(video_path: str | Path, question: str, history: list | None = No
         "provider": provider.name, "model": settings.model,
         "finish_reason": res.finish_reason, "truncated": res.truncated,
         "history": provider.extend_history(history, question, res.answer),
+        # Empty unless grounding is on AND the model chose to search. Both are normal.
+        "sources": getattr(res, "sources", []) or [],
+        "search_html": getattr(res, "search_html", None),
     }
 
 

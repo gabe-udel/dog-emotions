@@ -146,6 +146,16 @@ class ShareConfig:
     and locally there is no stranger whose video needs removing."""
 
 
+def grounding_enabled() -> bool:
+    """Whether to let Gemini search the web and return real source links.
+
+    Off by default. A grounded request can cost more per answer than a plain one, so
+    turning it on is a decision the owner makes knowingly rather than one this project
+    makes for them. Read per call, so .env edits need no restart.
+    """
+    return os.getenv("PUPCHAT_GROUNDING", "").strip().lower() in ("1", "true", "yes")
+
+
 def share_mode() -> bool:
     """True when Pupchat is being exposed to other people.
 
