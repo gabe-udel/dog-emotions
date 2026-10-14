@@ -132,7 +132,12 @@
 <textarea class="w-full max-h-36 py-2 px-1 resize-none bg-transparent font-body-md text-body-md text-on-surface placeholder:text-outline focus:outline-none leading-relaxed" id="prompt-input" oninput="autoExpand(this)" placeholder="Ask about your dog…" rows="1"></textarea>
 </div>
 <!-- Action Buttons / Send -->
+<div class="flex items-center gap-1 flex-shrink-0 mb-1">
 
+<button class="w-9 h-9 rounded-full bg-primary text-on-primary flex items-center justify-center hover:bg-primary-container transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm" id="send-button" onclick="handleSend()" type="button">
+<span class="material-symbols-outlined text-[18px]">arrow_upward</span>
+</button>
+</div>
 </div>
 </div>
 <!-- Reassuring Educational Medical Disclaimer -->
@@ -246,7 +251,19 @@
 
 </nav>
 
-<div id="toast" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-lg w-[90%]">
+<div id="videoModal" class="hidden fixed inset-0 z-50 bg-inverse-surface/80 backdrop-blur-sm
+ flex items-center justify-center p-4">
+  <div class="relative w-full max-w-3xl">
+    <button id="videoModalClose" type="button" title="Close"
+      class="absolute -top-3 -right-3 z-10 w-10 h-10 rounded-full bg-surface-container-lowest
+      text-on-surface shadow-lg flex items-center justify-center hover:bg-surface-container">
+      <span class="material-symbols-outlined text-[22px]">close</span>
+    </button>
+    <video id="videoModalPlayer" class="w-full rounded-2xl bg-black shadow-2xl"
+      controls autoplay playsinline></video>
+  </div>
+</div>
+<div id="toast" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-lg w-[90%]"
   <div class="flex items-start gap-3 px-4 py-3 rounded-xl bg-error-container text-on-error-container shadow-lg">
     <span class="material-symbols-outlined text-[20px] shrink-0">warning</span>
     <p id="toastText" class="font-body-sm text-body-sm flex-1"></p>
@@ -280,14 +297,8 @@
 </div>
 <!-- Action Buttons -->
 <div class="flex items-center gap-3 self-stretch sm:self-auto shrink-0">
-<button class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-lg text-label-lg px-5 py-2.5 rounded-full shadow-sm transition-all active:scale-[0.98]" type="button">
-<span class="material-symbols-outlined text-[18px]">share</span>
-<span>Share Profile</span>
-</button>
-<button class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary-container text-on-primary font-label-lg text-label-lg px-6 py-2.5 rounded-full shadow-sm transition-all active:scale-[0.98]" type="button">
-<span class="material-symbols-outlined text-[18px]">edit</span>
-<span>Edit Profile</span>
-</button>
+
+
 </div>
 </header>
 <!-- Quick Status Metric Banners -->
@@ -542,11 +553,11 @@
 <div class="flex items-center justify-between">
 <div class="flex items-center gap-space-sm">
 <div class="w-9 h-9 rounded-xl bg-surface-container-highest flex items-center justify-center p-1.5 shadow-sm">
-<img alt="Pupchat AI Logo" class="w-full h-full object-contain" src="assets/logo.png" alt-src="AEtjO1XjrtmQHmL_al45HDv9W5fIZXuXUqb6brsXQ-pD2uxE0M0XVlC1S3_NPHuSRp8OzWhZ7Ga0pdNwLXer2TrFQhW9WkDqzCpCnlHJg33yScZle1dbS64gLxXJyzLqZI5KXtd7ACVuInY0l5d89ARJ0GT2nI8Xr89EMdza8IOnbQYQskKohEhDJKfAkUeHhumqMA1HrxNN6kEPooF_2QGPCrKmFZuYvBiVNVVmC1ztAF-_W3zyXc3okZrYWNbr"/>
+<img alt="Pupchat AI Logo" class="w-full h-full object-contain" src="assets/logo.png"/>
 </div>
 <div>
 <h2 class="font-headline-sm text-headline-sm text-on-surface">Pupchat AI</h2>
-<p class="font-label-sm text-label-sm text-outline">Behavioral Breakdown · Milo</p>
+<p class="font-label-sm text-label-sm text-outline"><span data-field="dogName">this dog</span></p>
 </div>
 </div>
 <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm">
@@ -729,6 +740,35 @@
 </div>
 <span class="material-symbols-outlined text-[18px] text-outline group-hover:translate-x-0.5 transition-transform">chevron_right</span>
 </a></template>
+
+<template id="tpl-progress">
+<div data-progress class="flex">
+  <div class="w-full max-w-2xl px-5 py-4 rounded-2xl bg-surface-container-lowest border border-outline-variant/60 shadow-sm space-y-3">
+    <div class="flex items-center gap-2.5">
+      <span class="material-symbols-outlined text-[20px] text-primary">visibility</span>
+      <p class="font-label-lg text-label-lg text-on-surface font-semibold">Pupchat is watching the video…</p>
+    </div>
+    <ol data-steps class="space-y-1.5"></ol>
+    <div data-bar-wrap class="hidden h-1.5 rounded-full bg-surface-container overflow-hidden">
+      <div data-bar class="h-full bg-primary transition-all duration-300" style="width:0%"></div>
+    </div>
+    <p data-eta class="font-body-sm text-body-sm text-outline"></p>
+  </div>
+</div></template>
+
+<template id="tpl-progress-step">
+<li class="flex items-center gap-2.5 font-body-sm text-body-sm text-outline">
+  <span data-icon class="material-symbols-outlined text-[18px] text-outline-variant">radio_button_checked</span>
+  <span data-label class="flex-1"></span>
+  <span data-detail class="font-label-sm text-label-sm text-outline/70"></span>
+</li></template>
+
+<template id="tpl-error-turn">
+<div class="flex">
+  <div class="max-w-2xl px-4 py-3 rounded-2xl bg-error-container text-on-error-container border border-error/20">
+    <p data-field="text" class="font-body-sm text-body-sm"></p>
+  </div>
+</div></template>
 
 <script type="module" src="js/main.js"></script>
 </body></html>

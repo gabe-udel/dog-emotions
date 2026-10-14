@@ -24,13 +24,22 @@ def js_files() -> dict[str, str]:
     return {p.name: p.read_text(encoding="utf-8") for p in sorted(JS_DIR.glob("*.js"))}
 
 
-def strip_js(src: str) -> str:
-    """Remove strings, template literals, comments and regex-ish literals.
+#: A `/` in one of these positions starts a regex literal rather than a division.
+_REGEX_AFTER = set("(,=:[!&|?{};\n+-*%~^<>") | {""}
 
-    Crude, and only used for counting delimiters. Over-removal is safe here: it can make
-    a balance check pass that should fail, never fail one that should pass.
+
+def strip_js(src: str) -> str:
+    """Remove strings, template literals, comments and regex literals.
+
+    Crude, and only used for counting delimiters. Over-removal is safe: it can make a
+    balance check pass that should fail, never the other way round.
+
+    Regex literals have to go, and that is not optional - `/^\\d+[.)]\\s+/` contains a
+    lone ")" and `{1,4}` a lone brace pair, so leaving them in reports a perfectly good
+    module as unbalanced.
     """
     out, i, n = [], 0, len(src)
+    prev = ""
     while i < n:
         c = src[i]
         if c in "\"'`":
@@ -39,17 +48,36 @@ def strip_js(src: str) -> str:
             while i < n and src[i] != quote:
                 i += 2 if src[i] == "\\" else 1
             i += 1
+            prev = quote
         elif src.startswith("//", i):
-            i = src.find("\n", i)
-            if i < 0:
-                break
+            j = src.find("\n", i)
+            i = n if j < 0 else j
         elif src.startswith("/*", i):
-            i = src.find("*/", i)
-            if i < 0:
-                break
-            i += 2
+            j = src.find("*/", i)
+            i = n if j < 0 else j + 2
+        elif c == "/" and prev in _REGEX_AFTER:
+            i += 1
+            in_class = False
+            while i < n:
+                if src[i] == "\\":
+                    i += 2
+                    continue
+                if src[i] == "[":
+                    in_class = True
+                elif src[i] == "]":
+                    in_class = False
+                elif src[i] == "/" and not in_class:
+                    break
+                elif src[i] == "\n":
+                    break               # not a regex after all; bail out safely
+                i += 1
+            i += 1
         else:
             out.append(c)
+            if not c.isspace():
+                prev = c
+            elif c == "\n":
+                prev = "\n"
             i += 1
     return "".join(out)
 

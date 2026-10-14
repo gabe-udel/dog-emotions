@@ -327,7 +327,11 @@ def main() -> None:
            "breadcrumb")
     p.cut("Baseline Profile Synchronized", "fake sync badge", tag="<div")
     p.cut("Microchipped", "fake clinic line", tag="<p")
-    p.cut_after("Action Buttons", "Share / Edit Profile buttons")
+    # By button, not by the "Action Buttons" comment: the welcome composer's send row
+    # is commented "Action Buttons / Send", comes first in the document, and matched -
+    # which quietly removed the send button from the whole app.
+    p.cut("Share Profile", "Share Profile button", tag="<button")
+    p.cut("Edit Profile", "Edit Profile button", tag="<button")
 
     # The photo, or the first letter. One element either way, so there is no empty frame
     # before a photo is added.
@@ -455,7 +459,19 @@ def main() -> None:
     # the chat store, which created a chat titled "(error)" for every rejected upload and
     # read exactly like history not being saved.
     p.text("<!-- Profile header -->", """
-<div id="toast" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-lg w-[90%]">
+<div id="videoModal" class="hidden fixed inset-0 z-50 bg-inverse-surface/80 backdrop-blur-sm
+ flex items-center justify-center p-4">
+  <div class="relative w-full max-w-3xl">
+    <button id="videoModalClose" type="button" title="Close"
+      class="absolute -top-3 -right-3 z-10 w-10 h-10 rounded-full bg-surface-container-lowest
+      text-on-surface shadow-lg flex items-center justify-center hover:bg-surface-container">
+      <span class="material-symbols-outlined text-[22px]">close</span>
+    </button>
+    <video id="videoModalPlayer" class="w-full rounded-2xl bg-black shadow-2xl"
+      controls autoplay playsinline></video>
+  </div>
+</div>
+<div id="toast" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-lg w-[90%]"
   <div class="flex items-start gap-3 px-4 py-3 rounded-xl bg-error-container text-on-error-container shadow-lg">
     <span class="material-symbols-outlined text-[20px] shrink-0">warning</span>
     <p id="toastText" class="font-body-sm text-body-sm flex-1"></p>
@@ -493,11 +509,45 @@ def main() -> None:
            '<p data-empty-chats class="hidden font-body-sm text-body-sm text-outline py-2">'
            "No chats about this dog yet.</p>", "past chats empty state", expect=1)
 
+    # ---------------------------------------------------------------- new templates
+    # The export has no "working on it" state - its mockup is always of a finished
+    # answer. Built from the same card chrome so it belongs to the design.
+    p.templates.append("""<template id="tpl-progress">
+<div data-progress class="flex">
+  <div class="w-full max-w-2xl px-5 py-4 rounded-2xl bg-surface-container-lowest border border-outline-variant/60 shadow-sm space-y-3">
+    <div class="flex items-center gap-2.5">
+      <span class="material-symbols-outlined text-[20px] text-primary">visibility</span>
+      <p class="font-label-lg text-label-lg text-on-surface font-semibold">Pupchat is watching the video…</p>
+    </div>
+    <ol data-steps class="space-y-1.5"></ol>
+    <div data-bar-wrap class="hidden h-1.5 rounded-full bg-surface-container overflow-hidden">
+      <div data-bar class="h-full bg-primary transition-all duration-300" style="width:0%"></div>
+    </div>
+    <p data-eta class="font-body-sm text-body-sm text-outline"></p>
+  </div>
+</div></template>""")
+
+    p.templates.append("""<template id="tpl-progress-step">
+<li class="flex items-center gap-2.5 font-body-sm text-body-sm text-outline">
+  <span data-icon class="material-symbols-outlined text-[18px] text-outline-variant">radio_button_checked</span>
+  <span data-label class="flex-1"></span>
+  <span data-detail class="font-label-sm text-label-sm text-outline/70"></span>
+</li></template>""")
+
+    p.templates.append("""<template id="tpl-error-turn">
+<div class="flex">
+  <div class="max-w-2xl px-4 py-3 rounded-2xl bg-error-container text-on-error-container border border-error/20">
+    <p data-field="text" class="font-body-sm text-body-sm"></p>
+  </div>
+</div></template>""")
+
     # From here on the templates are part of the document again, so one rule covers both.
     p.assemble()
 
-    p.text('src="https://lh3.googleusercontent.com/aida/', 'src="assets/logo.png" alt-src="',
-           "assistant badge logo")
+    p.sub(r'src="https://lh3\.googleusercontent\.com/aida/[A-Za-z0-9_-]+"',
+          'src="assets/logo.png"', "assistant badge logo", expect=1)
+    p.text("Behavioral Breakdown · Milo",
+           '<span data-field="dogName">this dog</span>', "answer card subtitle")
     p.swap("A golden retriever dog barking excitedly", '<video data-clip '
            'class="w-full h-full object-cover" muted loop playsinline '
            'preload="metadata"></video>',

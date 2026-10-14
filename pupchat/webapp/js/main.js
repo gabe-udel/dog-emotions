@@ -9,10 +9,12 @@
  */
 
 import { api, ApiError } from "./api.js";
+import * as chat from "./chat.js";
 import * as router from "./router.js";
 import * as store from "./store.js";
 import { state } from "./store.js";
 import * as views from "./views.js";
+import { wireVideoModal } from "./video.js";
 import { $, viewRoot } from "./views.js";
 
 /* ------------------------------------------------------------------ views */
@@ -115,9 +117,15 @@ async function applyRoute(route) {
     views.renderDogPage(route.dogKey);
   }
 
-  if (route.view === "chat" && state.ready && !store.chatById(route.chatId)) {
-    toastError("That chat is not here any more.");
-    router.go("/", { replace: true });
+  if (route.view === "chat") {
+    if (state.ready && !store.chatById(route.chatId)) {
+      toastError("That chat is not here any more.");
+      router.go("/", { replace: true });
+      return;
+    }
+    showView("chat");
+    renderAll();
+    await chat.renderChat(route.chatId);
     return;
   }
 
@@ -230,12 +238,95 @@ function wireDogEditing() {
   });
 }
 
+/* ------------------------------------------------------------------ composer */
+
+/* Both screens have one - the welcome screen's textarea and the chat screen's input.
+ * They are wired together so a question typed on either goes the same way. */
+function composers() {
+  return [
+    { box: $("prompt-input"), send: $("send-button"),
+      file: $("media-upload-input") },
+    { box: viewRoot("chat")?.querySelector('input[type="text"]'),
+      send: viewRoot("chat")?.querySelector("button[title='Send message']"),
+      file: null },
+  ].filter((c) => c.box);
+}
+
+function wireComposers() {
+  const fileInput = $("media-upload-input");
+
+  const submit = async (box) => {
+    const text = box.value;
+    box.value = "";
+    autoGrow(box);
+    await chat.send(text, {
+      onError: toastError,
+      onChat: (id) => {
+        // replace, not push: the question is not a place you navigate back to.
+        history.replaceState({}, "", `/chat/${id}`);
+        showView("chat");
+        renderAll();
+      },
+    });
+    renderAll();
+  };
+
+  for (const c of composers()) {
+    c.send?.addEventListener("click", () => submit(c.box));
+    c.box.addEventListener("input", () => autoGrow(c.box));
+    c.box.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        submit(c.box);
+      }
+    });
+  }
+
+  // Every way of reaching the file picker: the + on the welcome screen, the + on the
+  // chat screen, and the "Upload a clip" item in its popover.
+  for (const el of document.querySelectorAll(
+    '#toggle-popover-btn, [data-action="upload"], [title="Upload canine video or photo"]'
+  )) {
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      fileInput?.click();
+      $("media-upload-popover")?.classList.add("hidden");
+    });
+  }
+  fileInput?.addEventListener("change", async () => {
+    const file = fileInput.files?.[0];
+    fileInput.value = "";
+    await chat.attachFile(file, toastError);
+  });
+  document.querySelector('#media-chip button')?.addEventListener("click", () =>
+    chat.setAttachment(null));
+
+  for (const card of document.querySelectorAll("[data-prompt]")) {
+    card.addEventListener("click", () => {
+      const box = composers()[0]?.box;
+      if (!box) return;
+      box.value = card.dataset.prompt;
+      autoGrow(box);
+      box.focus();
+    });
+  }
+}
+
+function autoGrow(box) {
+  if (box.tagName !== "TEXTAREA") return;
+  box.style.height = "auto";
+  box.style.height = Math.min(box.scrollHeight, 144) + "px";
+}
+
 /* ------------------------------------------------------------------ boot */
 
 async function boot() {
   wireSidebar();
   wireDogMenu();
   wireDogEditing();
+  wireComposers();
+  wireVideoModal();
   $("toastClose")?.addEventListener("click", () => $("toast").classList.add("hidden"));
   store.subscribe(renderAll);
 

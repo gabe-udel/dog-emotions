@@ -22,13 +22,16 @@ request - including the page itself - for the whole measurement.
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import io
 import json
+import math
 import os
 import secrets
 import shutil
 import tempfile
+import time
 
 
 def os_getenv(name: str) -> str:
@@ -50,7 +53,8 @@ from .config import (ATTRIBUTION, LICENCE_NOTICE, OUT_DIR, Config, load_env,
                      share_mode)
 from .guard import (AnalysisQueue, Budget, BudgetExceeded, QueueFull, client_ip,
                     is_local, read_capped, sweep)
-from .library import PHOTO_DIR, library
+from .jobs import JobStore, estimate, record_timing
+from .library import PHOTO_DIR, library, profile_text
 from .pipeline import analyse, cache_dir, probe, video_hash
 
 WEBAPP = Path(__file__).resolve().parent / "webapp"
@@ -192,6 +196,23 @@ class SpaFiles(StaticFiles):
                     or (parts and parts[0] in self.SPA_EXCLUDE)):
                 raise
             return await super().get_response("index.html", scope)
+
+
+def frames_for(path: Path, cfg: Config) -> int | None:
+    """How many frames the keypoint pass will measure, known before it starts.
+
+    Mirrors pipeline.sample_frames' striding, which is what makes the first estimate a
+    calculation rather than a guess about clip length. Returns None if the video cannot
+    be probed; the estimate then falls back to a default rather than failing the request.
+    """
+    try:
+        src_fps, n_src, _ = probe(path)
+    except Exception:                               # noqa: BLE001 - estimate only
+        return None
+    if src_fps <= 0 or n_src <= 0:
+        return None
+    stride = max(1, int(round(src_fps / max(cfg.keypoint.target_fps, 0.1))))
+    return max(1, min(cfg.keypoint.max_frames, math.ceil(n_src / stride)))
 
 
 def build_app():
@@ -570,6 +591,138 @@ def build_app():
         if not lib.delete_chat(chat_id):
             raise HTTPException(404, "no chat with that id")
         return {"ok": True}
+
+    # ------------------------------------------------------------------ jobs
+    jobs = JobStore()
+    app.state.jobs = jobs
+
+    def launch(job, fn):
+        """Run `fn(job)` in the background and never let it vanish.
+
+        Two traps, both silent. asyncio.create_task returns a Task the loop only holds
+        weakly, so without keeping the reference it can be collected mid-flight; and an
+        unhandled exception inside a detached task disappears into the loop's exception
+        handler while the page keeps polling a job that will never finish.
+        """
+        async def runner():
+            try:
+                jobs.finish(job, result=await fn(job))
+            except HTTPException as e:
+                jobs.finish(job, error=str(e.detail))
+            except Exception as e:                    # noqa: BLE001 - must not escape
+                jobs.finish(job, error=f"{type(e).__name__}: {e}")
+
+        job.task = asyncio.create_task(runner())
+        return job.snapshot()
+
+    @app.post("/api/jobs/analyse")
+    async def api_job_analyse(request: Request, file: UploadFile = File(...)):
+        """Measure a clip, reporting progress while it runs."""
+        cfg = Config()
+        try:
+            data = await read_capped(file, cfg.upload.max_bytes)
+        except ValueError as e:
+            raise HTTPException(413, str(e))
+        path = _store_upload(file.filename or "clip.mp4", data)
+        try:
+            duration = check_duration(path, cfg)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+
+        vhash = video_hash(path)
+        cached = (cache_dir(vhash) / "evidence.json").exists()
+        # The caps and the queue are checked HERE, not inside the task. A 429 that
+        # arrives three polls later is indistinguishable from a slow answer, and the
+        # Retry-After header is only useful on the request that was refused.
+        if not cached:
+            spend("analyse", request)
+        job = jobs.create("analyse", eta_total_s=estimate(
+            frames_for(path, cfg), cached=cached, queue_ahead=queue.depth, ask=False))
+
+        async def work(job):
+            res = await queued(analyse, path, cfg, progress=job.report)
+            if not res.get("cached"):
+                record_timing(time.time() - job.started, job.frames or 0)
+            return json_safe({"hash": res["hash"], "duration_s": round(duration, 2),
+                              "cached": res["cached"], "meta": res["meta"],
+                              "evidence_text": res["evidence_text"],
+                              "evidence": res["evidence"], "name": file.filename})
+
+        return launch(job, work)
+
+    @app.post("/api/jobs/ask")
+    async def api_job_ask(request: Request, question: str = Form(...),
+                          hash: str = Form(None), chat_id: str = Form(None),
+                          video: str = Form(None)):
+        """Ask about a clip. The server owns the transcript.
+
+        It appends the question immediately and the answer when it arrives, so one
+        writer keeps them in order and a crash mid-answer leaves a visible failed turn
+        rather than a silent gap.
+        """
+        from .client import ask_pupchat
+        try:
+            path = _resolve(video, hash)
+        except FileNotFoundError as e:
+            raise HTTPException(404, str(e))
+
+        owner = is_owner(request)
+        chat = lib.chat(chat_id) if (owner and chat_id) else None
+        if chat_id and owner and chat is None:
+            raise HTTPException(404, "no chat with that id")
+
+        spend("ask", request)
+        dog = lib.dog(chat.get("dog_id")) if chat else lib.dog(lib.active_dog_id())
+        profile = profile_text(dog) if owner else ""
+        history = (chat or {}).get("history") or None
+
+        vhash = video_hash(path)
+        cached = (cache_dir(vhash) / "evidence.json").exists()
+        job = jobs.create("ask", eta_total_s=estimate(
+            frames_for(path, Config()), cached=cached, queue_ahead=queue.depth))
+
+        if chat:
+            lib.append_message(chat["id"], {"role": "user", "text": question,
+                                            "hash": vhash})
+            lib.update_chat(chat["id"], pending_job_id=job.id, hash=vhash)
+
+        async def work(job):
+            try:
+                res = await queued(ask_pupchat, path, question, history=history,
+                                   cfg=Config(), progress=job.report, profile=profile)
+            except SystemExit as e:                  # missing key, bad provider
+                if chat:
+                    lib.append_message(chat["id"], {"role": "error", "text": str(e)})
+                    lib.update_chat(chat["id"], pending_job_id=None)
+                raise HTTPException(503, str(e))
+            out = json_safe({
+                "answer": res["answer"], "history": res["history"],
+                "provider": res["provider"], "model": res["model"],
+                "usage": res["usage"], "cost_usd": res["cost_usd"],
+                "seconds": res["seconds"], "truncated": res.get("truncated", False),
+                "evidence_text": res["evidence_text"], "hash": res["hash"],
+                "sources": res.get("sources") or [],
+            })
+            if chat:
+                lib.append_message(chat["id"], {
+                    "role": "assistant", "text": out["answer"], "model": out["model"],
+                    "seconds": out["seconds"], "cost_usd": out["cost_usd"],
+                    "sources": out["sources"]})
+                lib.update_chat(chat["id"], history=out["history"],
+                                pending_job_id=None)
+            return out
+
+        return launch(job, work)
+
+    @app.get("/api/jobs/{job_id}")
+    def api_job(job_id: str):
+        job = jobs.get(job_id)
+        if job is None:
+            # Evicted after an hour, or the server restarted. Saying so beats a bare
+            # 404, because the page may be resuming a poll after a reload.
+            raise HTTPException(404, "that job has finished and been cleared. "
+                                     "Reload the page to see where it got to.")
+        return json_safe(job.snapshot())
 
     # The front end last, so /api/* always wins over a file of the same name.
     if WEBAPP.exists():
