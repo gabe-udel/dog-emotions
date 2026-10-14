@@ -23,8 +23,10 @@ request - including the page itself - for the whole measurement.
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
+import secrets
 import shutil
 import tempfile
 
@@ -40,14 +42,15 @@ from pathlib import Path, PurePosixPath
 # Imported locally they are invisible there, and UploadFile fails to resolve at runtime.
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import (ATTRIBUTION, LICENCE_NOTICE, OUT_DIR, Config, load_env,
                      share_mode)
 from .guard import (AnalysisQueue, Budget, BudgetExceeded, QueueFull, client_ip,
-                    read_capped, sweep)
+                    is_local, read_capped, sweep)
+from .library import PHOTO_DIR, library
 from .pipeline import analyse, cache_dir, probe, video_hash
 
 WEBAPP = Path(__file__).resolve().parent / "webapp"
@@ -63,6 +66,9 @@ UPLOADS = OUT_DIR / "uploads"
 
 # Anything already in the old location is still found, so existing chats keep working.
 LEGACY_UPLOADS = Path(tempfile.gettempdir()) / "pupchat_uploads"
+
+OWNER_COOKIE = "pupchat_owner"
+PHOTO_MAX_BYTES = 10 * 1024 * 1024
 
 
 def _store_upload(name: str, data: bytes) -> Path:
@@ -194,6 +200,29 @@ def build_app():
                   description=LICENCE_NOTICE)
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
                        allow_headers=["*"])
+
+    @app.middleware("http")
+    async def claim_owner_token(request: Request, call_next):
+        """The QR link carries the owner token once; after that a cookie carries it.
+
+        Redirecting to a clean URL is not cosmetic. A token left in the address bar ends
+        up in browser history, in any screenshot of the phone, and in whatever link the
+        owner pastes to someone next.
+
+        `httponly` keeps the page's own JavaScript away from it, which costs nothing
+        because the page never needs to read it - fetch sends it automatically. `secure`
+        is deliberately NOT set: with it the cookie would never be stored on
+        http://127.0.0.1:8000, which is the common case. Over the tunnel the hop to
+        Cloudflare is TLS regardless.
+        """
+        token = request.query_params.get("k")
+        if token and request.url.path == "/":
+            resp = RedirectResponse("/", status_code=303)
+            if secrets.compare_digest(token, library().owner_token()):
+                resp.set_cookie(OWNER_COOKIE, token, max_age=30 * 86400,
+                                httponly=True, samesite="lax")
+            return resp
+        return await call_next(request)
 
     cfg0 = Config()
     budget = Budget(OUT_DIR / "share_budget.json", cfg0.share)
@@ -395,6 +424,152 @@ def build_app():
     def api_flags():
         from .feedback import load_flags
         return {"flags": load_flags()}
+
+    # ------------------------------------------------------------------ the library
+    lib = library()
+
+    def is_owner(request: Request) -> bool:
+        """Whoever is running this server, plus any device holding the owner token.
+
+        The token exists because the owner's own phone arrives through the Cloudflare
+        tunnel, so it is not local and cannot be recognised any other way.
+        """
+        if is_local(client_ip(request)):
+            return True
+        token = (request.cookies.get(OWNER_COOKIE)
+                 or request.headers.get("x-pupchat-owner") or "")
+        return bool(token) and secrets.compare_digest(token, lib.owner_token())
+
+    def require_owner(request: Request) -> None:
+        if not is_owner(request):
+            raise HTTPException(
+                403, "These dogs and chats belong to whoever is running this Pupchat. "
+                     "You can still upload a clip and ask about it.")
+
+    @app.get("/api/library")
+    def api_library(request: Request):
+        """Everything the sidebar needs, in one call.
+
+        A visitor gets the same shape with nothing in it, so the page renders its empty
+        states instead of breaking - and never learns this machine has dogs on it.
+        """
+        return json_safe(lib.snapshot(owner=is_owner(request)))
+
+    @app.post("/api/dogs")
+    async def api_dog_create(request: Request):
+        require_owner(request)
+        return lib.add_dog(await request.json())
+
+    @app.put("/api/dogs/{dog_id}")
+    async def api_dog_update(request: Request, dog_id: str):
+        require_owner(request)
+        dog = lib.update_dog(dog_id, await request.json())
+        if dog is None:
+            raise HTTPException(404, "no dog with that id")
+        return dog
+
+    @app.delete("/api/dogs/{dog_id}")
+    def api_dog_delete(request: Request, dog_id: str):
+        require_owner(request)
+        detached = lib.delete_dog(dog_id)
+        if detached < 0:
+            raise HTTPException(404, "no dog with that id")
+        return {"ok": True, "chats_detached": detached}
+
+    @app.put("/api/dogs/{dog_id}/photo")
+    async def api_dog_photo_set(request: Request, dog_id: str,
+                                file: UploadFile = File(...)):
+        require_owner(request)
+        if lib.dog(dog_id) is None:
+            raise HTTPException(404, "no dog with that id")
+        try:
+            data = await read_capped(file, PHOTO_MAX_BYTES)
+        except ValueError as e:
+            raise HTTPException(413, str(e))
+        # Decode the header rather than trusting the extension. A .jpg that is really
+        # HTML, served back from this origin, would be stored XSS on the owner's own
+        # page.
+        try:
+            from PIL import Image
+            img = Image.open(io.BytesIO(data))
+            img.verify()
+            fmt = (img.format or "").lower()
+        except Exception:
+            raise HTTPException(400, "that file is not an image Pupchat can read. "
+                                     "JPEG, PNG or WebP work.")
+        if fmt not in ("jpeg", "png", "webp", "gif"):
+            raise HTTPException(400, f"{fmt or 'that format'} is not supported. "
+                                     f"Use JPEG, PNG or WebP.")
+        suffix = {"jpeg": ".jpg"}.get(fmt, f".{fmt}")
+        PHOTO_DIR.mkdir(parents=True, exist_ok=True)
+        for old in PHOTO_DIR.glob(f"{dog_id}.*"):
+            old.unlink(missing_ok=True)
+        (PHOTO_DIR / f"{dog_id}{suffix}").write_bytes(data)
+        return lib.set_photo(dog_id, suffix)
+
+    @app.get("/api/dogs/{dog_id}/photo")
+    def api_dog_photo_get(request: Request, dog_id: str):
+        require_owner(request)
+        path = lib.photo_path(dog_id)
+        if path is None:
+            raise HTTPException(404, "that dog has no photo")
+        return FileResponse(path)
+
+    @app.post("/api/dogs/{dog_id}/baselines")
+    async def api_baseline_add(request: Request, dog_id: str):
+        require_owner(request)
+        body = await request.json()
+        if not body.get("hash"):
+            raise HTTPException(400, "a baseline needs the hash of a measured clip")
+        dog = lib.add_baseline(dog_id, {"hash": body["hash"],
+                                        "name": body.get("name") or "clip",
+                                        "duration": body.get("duration")})
+        if dog is None:
+            raise HTTPException(404, "no dog with that id")
+        return dog
+
+    @app.delete("/api/dogs/{dog_id}/baselines/{vhash}")
+    def api_baseline_remove(request: Request, dog_id: str, vhash: str):
+        require_owner(request)
+        dog = lib.remove_baseline(dog_id, vhash)
+        if dog is None:
+            raise HTTPException(404, "no dog with that id")
+        return dog
+
+    @app.put("/api/active-dog")
+    async def api_active_dog(request: Request):
+        require_owner(request)
+        lib.set_active_dog((await request.json()).get("dog_id"))
+        return {"ok": True}
+
+    @app.post("/api/chats")
+    async def api_chat_create(request: Request):
+        require_owner(request)
+        body = await request.json()
+        return lib.add_chat(body.get("dog_id"), body.get("title", ""))
+
+    @app.get("/api/chats/{chat_id}")
+    def api_chat_get(request: Request, chat_id: str):
+        require_owner(request)
+        chat = lib.chat(chat_id)
+        if chat is None:
+            raise HTTPException(404, "no chat with that id")
+        return json_safe(chat)
+
+    @app.patch("/api/chats/{chat_id}")
+    async def api_chat_patch(request: Request, chat_id: str):
+        require_owner(request)
+        chat = lib.update_chat(chat_id, **(await request.json()))
+        if chat is None:
+            raise HTTPException(404, "no chat with that id")
+        return json_safe(chat)
+
+    @app.delete("/api/chats/{chat_id}")
+    def api_chat_delete(request: Request, chat_id: str):
+        require_owner(request)
+        if not lib.delete_chat(chat_id):
+            raise HTTPException(404, "no chat with that id")
+        return {"ok": True}
 
     # The front end last, so /api/* always wins over a file of the same name.
     if WEBAPP.exists():
