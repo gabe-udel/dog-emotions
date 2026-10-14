@@ -260,6 +260,59 @@ def test_api_routes_win_over_static_files(client):
     assert client.get("/api/health").json()["ok"] is True
 
 
+# ------------------------------------------------------------------ deep links
+
+@pytest.mark.parametrize("path", ["/chat/ab65fb44eb3a3f0d", "/dogs/Biscuit", "/dogs/new",
+                                  "/dogs", "/chat/anything/at/all"])
+def test_a_front_end_path_serves_the_page(client, path):
+    """Refreshing on /chat/<id>, or opening a link someone shared, must not 404.
+
+    The front end owns these paths and no such files exist. A plain static mount answers
+    404 for every one of them, which looks like a broken app rather than a missing file.
+    """
+    r = client.get(path)
+    assert r.status_code == 200, path
+    assert r.text == client.get("/").text
+
+
+def test_a_missing_asset_is_still_a_404(client):
+    """The other half, and the easier one to get wrong.
+
+    Serving index.html for /assets/typo.woff2 would return HTML with status 200, and the
+    browser would report a font parsing error - burying the real problem, which is that
+    the file is not there.
+    """
+    for path in ("/assets/nope.woff2", "/js/nope.js", "/assets/fonts/gone.css",
+                 "/logo.png"):
+        assert client.get(path).status_code == 404, path
+
+
+def test_the_api_guard_survives_windows_separators():
+    """StaticFiles reports the path in the HOST's separators.
+
+    On Windows /api/nope arrives at the fallback as "api\\nope", so a guard written as
+    `path.startswith("api/")` never matches and every unknown /api/* request quietly
+    returns the web page with status 200. Checked at the unit level because the bug is
+    invisible on Linux, where the integration test above would pass anyway.
+    """
+    from pupchat.api import SpaFiles
+    from pathlib import PurePosixPath
+
+    for raw in ("api\\nope", "api/nope", "/api/nope"):
+        parts = PurePosixPath(raw.replace("\\", "/")).parts
+        head = next((p for p in parts if p not in ("/", "")), "")
+        assert head in SpaFiles.SPA_EXCLUDE, raw
+
+
+def test_an_unknown_api_path_stays_json(client):
+    """A caller of /api/* parses JSON. Handing it an HTML page instead turns a clear
+    404 into a parse error somewhere else entirely."""
+    r = client.get("/api/nope")
+    assert r.status_code == 404
+    assert r.headers["content-type"].startswith("application/json")
+    assert "<html" not in r.text.lower()
+
+
 # ------------------------------------------------------------------ video playback
 
 def test_an_uploaded_clip_can_be_played_back(client):

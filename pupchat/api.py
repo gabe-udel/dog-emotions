@@ -33,7 +33,7 @@ def os_getenv(name: str) -> str:
     """Whether a key is present - never the key itself. The page needs to know it can
     ask a question; it must never learn the secret."""
     return os.getenv(name, "").strip()
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 # Module scope, not inside build_app: `from __future__ import annotations` turns the
 # endpoint annotations into strings, and FastAPI resolves them against module globals.
@@ -42,6 +42,7 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import (ATTRIBUTION, LICENCE_NOTICE, OUT_DIR, Config, load_env,
                      share_mode)
@@ -147,6 +148,44 @@ def _resolve(video: str | None, vhash: str | None) -> Path:
     raise FileNotFoundError(
         "no video for this request: upload it to /api/analyse first, then send its "
         "hash")
+
+
+class SpaFiles(StaticFiles):
+    """Static files, plus: a path the front end owns gets the page.
+
+    The browser owns /chat/<id>, /dogs/<name> and /dogs/new. No such files exist, so a
+    plain mount answers 404 - which means refreshing the page, or opening a link someone
+    shared, lands on "Not Found" while the app is running perfectly well.
+
+    It has to be a subclass rather than an extra route. `Mount("/")` matches every path
+    and Starlette stops at the first match, so a route registered after the mount is
+    unreachable, and one registered before it would shadow the real files.
+
+    Two paths must NOT get the page, and both were found by their tests:
+
+    * anything that looks like a file. Serving index.html for a mistyped
+      /assets/foo.woff2 returns HTML with status 200, and the browser then reports a font
+      parsing error instead of the 404 that names the actual problem.
+    * anything under /api/. Only the API routes that EXIST are registered ahead of this
+      mount; an unknown one falls through to here, and /api/typo has no dot in it, so
+      without this guard a client expecting JSON gets a web page with status 200.
+    """
+
+    SPA_EXCLUDE = ("api",)
+
+    async def get_response(self, path: str, scope):
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as e:
+            # StaticFiles hands this back in the HOST's separators, so on Windows
+            # /api/nope arrives as "api\\nope" and a check against "api/" silently
+            # never matches. Normalise before looking at it.
+            parts = PurePosixPath(path.replace("\\", "/")).parts
+            if (e.status_code != 404
+                    or "." in (parts[-1] if parts else "")
+                    or (parts and parts[0] in self.SPA_EXCLUDE)):
+                raise
+            return await super().get_response("index.html", scope)
 
 
 def build_app():
@@ -359,7 +398,7 @@ def build_app():
 
     # The front end last, so /api/* always wins over a file of the same name.
     if WEBAPP.exists():
-        app.mount("/", StaticFiles(directory=str(WEBAPP), html=True), name="webapp")
+        app.mount("/", SpaFiles(directory=str(WEBAPP), html=True), name="webapp")
 
     return app
 
