@@ -128,6 +128,21 @@ class Page:
         assert body_end <= a1, f"{heading}: content ran past the card"
         return self._replace(body_start, body_end, new, f"card   {label}")
 
+    def link(self, needle: str, href: str, label: str, nth: int = 0) -> None:
+        """Give the <a> containing `needle` a real destination.
+
+        By content rather than by pattern: the export wraps its link text in spans at
+        varying depth, so a regex over the opening tag plus the first words is brittle
+        in a way that only shows up as a silently unchanged `href="#"`.
+        """
+        a = self._open_tag_before(needle, "<a", nth)
+        end = self.html.index(">", a)
+        tag = self.html[a:end + 1]
+        if 'href="#"' not in tag:
+            raise SystemExit(f"{label}: that <a> has no href=\"#\" ({tag[:80]!r})")
+        self._replace(a, end + 1, tag.replace('href="#"', f'href="{href}"'),
+                      f"link   {label}")
+
     def sub(self, pattern: str, new: str, label: str, expect: int = 0) -> None:
         self.html, n = re.subn(pattern, new, self.html)
         if n == 0:
@@ -369,6 +384,16 @@ def main() -> None:
            "just what is unusual for dogs.", "baseline explainer")
     p.text("Teach Pupchat about Milo", "Teach Pupchat about this dog", "baseline heading")
 
+    # Hooks for the two lists the dog page draws. Without them the renderer finds its
+    # container by matching a Tailwind class string, which breaks the moment the design
+    # is re-exported with different spacing.
+    p.text('<div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">',
+           '<div data-baselines class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">',
+           "baseline grid hook", expect=1)
+    p.text('<div class="space-y-2.5" role="list">',
+           '<div data-past-chats class="space-y-2.5" role="list">',
+           "past chats hook", expect=1)
+
     p.template("past-chat-row", p.cut(">Barking at guests<", "sample past chat", tag="<a"))
     for t in ("Leash pulling on morning walks", "Is this rough play with neigh",
               "Whining during highway car"):
@@ -438,6 +463,35 @@ def main() -> None:
   </div>
 </div>
 <!-- Profile header -->""", "toast banner")
+
+    # ---------------------------------------------------------------- dead links
+    # Every <a> in the export points at "#", which scrolls to the top and reads as
+    # broken. Each one either gets a real path or stops being a link.
+    p.text('data-path="new-chat" href="#"', 'data-path="new-chat" href="/"', "New -> /")
+    p.text('data-path="add-dog" href="#"', 'data-path="add-dog" href="/dogs/new"',
+           "Add -> /dogs/new")
+    p.text('data-path="dog-profile" href="#"', 'data-path="dog-profile" href="/dogs"',
+           "profile link")
+    p.link(">My Dogs<", "/dogs", "breadcrumb My Dogs", nth=1)   # nth=0 is the sidebar
+    p.link(">add_comment<", "/", "start a new chat")
+    p.cut("View All", "View All link", tag="<a")
+
+    # The three attach choices are actions, not destinations. Recording and photos are
+    # not built, so only the one that works survives.
+    p.swap("Upload video", '<button data-action="upload" type="button" '
+           'class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl '
+           'hover:bg-surface-container transition-colors text-left">'
+           '<span class="material-symbols-outlined text-[20px] text-primary">video_file'
+           '</span><span class="font-label-md text-label-md text-on-surface">'
+           'Upload a clip</span></button>', "upload action", tag="<a")
+    p.cut("Record video", "record video (not built)", tag="<a")
+    p.cut("Add photo", "add photo (not built)", tag="<a")
+
+    # Declared in the page rather than created in JS, so the hook test can see it.
+    p.text('<div data-past-chats class="space-y-2.5" role="list">',
+           '<div data-past-chats class="space-y-2.5" role="list">'
+           '<p data-empty-chats class="hidden font-body-sm text-body-sm text-outline py-2">'
+           "No chats about this dog yet.</p>", "past chats empty state", expect=1)
 
     # From here on the templates are part of the document again, so one rule covers both.
     p.assemble()
