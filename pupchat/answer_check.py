@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import re
 
+from .sources import citation_shaped
+
 SECTIONS = ("What I see", "What it likely means", "Do", "Don't", "Try this next")
 
 # A heading may arrive bolded, as a markdown header, or bare with a colon. The rule
@@ -78,7 +80,12 @@ def leaked_jargon(text: str) -> list[str]:
 # sentences like that. So a hit only counts when it is not already being warned against.
 _NEGATION = re.compile(
     r"\b(don'?t|do not|never|avoid|instead of|rather than|without|no need to|"
-    r"shouldn'?t|should not|not recommend\w*|stay away from)\b", re.I)
+    r"shouldn'?t|should not|not recommend\w*|stay away from|"
+    # Added when the feelings check went in: "he doesn't look anxious" is a description
+    # of what is NOT there. The original list had "don't" but not "doesn't", which also
+    # meant "he doesn't need a prong collar" was being read as recommending one.
+    r"doesn'?t|does not|isn'?t|is not|wasn'?t|was not|aren'?t|are not|"
+    r"hasn'?t|has not|no sign of|nothing like)\b", re.I)
 
 
 def aversive_advice(text: str) -> list[str]:
@@ -128,23 +135,101 @@ def referral_report(text: str, tail_fraction: float = 0.25) -> dict:
     }
 
 
+CORE = ("What I see", "What it likely means", "Do")
+"""What a new-video answer should cover in substance.
+
+"Don't" and "Try this next" are good structure, not a safety rule. A two-paragraph answer
+to "is this normal?" is better without them, and failing it for that was the check
+enforcing a format rather than a standard.
+"""
+
+ANSWER_BANNED = (
+    "happy", "happiness", "sad", "sadness", "angry", "anger", "anxious", "anxiety",
+    "stressed", "stress", "fearful", "afraid", "scared", "frightened", "frustrated",
+    "frustration", "aggressive", "aggression", "depressed", "distressed",
+    "pain", "painful", "injured", "injury", "sick", "illness",
+)
+"""Feelings and clinical claims, banned inside "What I see" only.
+
+Deliberately NARROWER than config.BANNED_WORDS. That list is built for the evidence
+layer, where no interpretation is allowed at all, so it also bans "relaxed", "tense" and
+"alert" as interpretation in body-language clothes. In the model's ANSWER those describe
+muscle tone, which is body - and interpreting is explicitly the model's job. Failing "his
+mouth was relaxed" would be this check fighting the prompt it is meant to enforce.
+
+What stays banned there is the split the prompt asks for: describe the body in "What I
+see", say what it means in the next section.
+"""
+
+
+def banned_in_what_i_see(text: str) -> list[str]:
+    """Feeling words inside the description section.
+
+    Negation-aware, reusing the same sentence walk as `aversive_advice`: "he doesn't look
+    anxious" is a description of what is absent, not a conclusion being smuggled in.
+    """
+    spans = section_positions(text)
+    if "What I see" not in spans:
+        return []
+    start = spans["What I see"]
+    later = [p for s, p in spans.items() if p > start]
+    end = min(later) if later else len(text)
+
+    found: list[str] = []
+    for _, sentence in _sentences(text[start:end]):
+        low = sentence.lower()
+        for word in ANSWER_BANNED:
+            if re.search(rf"\b{re.escape(word)}\b", low):
+                before = low[: low.index(word)]
+                if not _NEGATION.search(before):
+                    found.append(word)
+    return sorted(set(found))
+
+
+def word_count(text: str) -> int:
+    return len((text or "").split())
+
+
 def check(text: str, *, new_video: bool) -> dict:
-    """Every rule at once. `new_video` selects the format expectation."""
+    """Every rule at once. `new_video` selects the format expectation.
+
+    The five headings stopped being a pass condition when the prompt started allowing a
+    different shape - "use fewer headings, or differently named ones, when the question
+    calls for it". They are still reported, because the shape is worth seeing; they are
+    no longer a failure. What a follow-up must still not do is re-run the whole format.
+    """
     ref = referral_report(text)
     five = looks_like_new_video_answer(text)
+    spans = section_positions(text)
+    words = word_count(text)
+    too_long = words > (450 if new_video else 220)
+    invented = citation_shaped(text)
+    feelings = banned_in_what_i_see(text)
     return {
+        # ---- described, never a failure
         "five_sections": five,
         "format_ok": five if new_video else not five,
-        "missing_sections": [s for s in SECTIONS if s not in section_positions(text)],
-        "raw_degrees": raw_degrees(text),
+        "missing_sections": [s for s in SECTIONS if s not in spans],
+        "core_covered": [s for s in CORE if s in spans],
+        "word_count": words,
+        "too_long": too_long,
         "leaked_jargon": leaked_jargon(text),
+        # ---- the rules that still fail
+        "raw_degrees": raw_degrees(text),
         "aversive_advice": aversive_advice(text),
+        "citation_shaped": invented,
+        "feelings_in_what_i_see": feelings,
         "referral": ref,
         "passed": (
-            (five if new_video else not five)
+            bool((text or "").strip())
             and not raw_degrees(text)
             and not aversive_advice(text)
+            # The model is told to write no citations at all, so one it wrote itself is
+            # the single failure a reader cannot check for themselves.
+            and not invented
+            and not feelings
             and ref["at_most_one"] and ref["at_end"]
+            and (True if new_video else not five)
         ),
     }
 

@@ -1,6 +1,6 @@
 # CLAUDE.md — handoff notes
 
-Project state as of **2026-10-11**.
+Project state as of **2026-10-14**.
 
 The pipeline is a **two-stage cascade**: stock SuperAnimal-Quadruped for the body, a
 dedicated DogFLW model for the face. On top of it sits a **feature layer** that turns
@@ -15,6 +15,7 @@ model and gets an owner-facing answer back (§15).
 | Features (20 live) | implemented, tested, error measured against ground truth |
 | Classification | pilot only, 24 labelled rows, no trained model exists |
 | Pupchat prototype | end to end and tested; the measurement half verified on real video |
+| Pupchat web app | the Stitch design, wired: real URLs, server-side storage, live progress, phone QR |
 
 Model in use: `face_project/face38/snapshot-best-008.pt`.
 Its predecessor `face1` (46 landmarks) is backed up under `backups/face1-46kp-2026-09-03/`.
@@ -567,6 +568,14 @@ are sampled client-side at **2 fps under 15 s**, 1 fps above, capped at 32. Gemi
 the file whole ([docs](https://ai.google.dev/gemini-api/docs/video-understanding)):
 inline under 100 MB, Files API above.
 
+The answer shape is now the five headings **by default, not by rule**: the prompt says
+to use fewer or differently named ones when the question calls for it, so `answer_check`
+reports the shape and no longer fails on it. What it does still fail: a raw degree figure,
+aversive advice, more than one referral or one that is not at the end, a citation the
+model wrote itself, and a feeling word inside "What I see" - that last from a list
+deliberately NARROWER than `BANNED_WORDS`, because "relaxed" and "tense" describe muscle
+tone and interpreting is the model's job.
+
 The system prompt and the evidence text are byte-identical across providers, and a test
 asserts it. Otherwise a comparison between them measures two prompts rather than two
 models. `PUPCHAT_PROVIDER` in `.env` selects; `--provider` overrides for one run.
@@ -635,6 +644,96 @@ a feature is NaN unless EVERY keypoint it needs clears the cut.
 
 `pipeline.py` caches `keypoints.npz` for this (CACHE_VERSION 4); older caches need
 `--force`.
+
+### The web app
+
+`pupchat/webapp/` is the Google Stitch design, merged into one page. The export was three
+standalone HTML files that were 99.5% identical — each carrying its own copy of the 14 KB
+sidebar and header — so they are merged: one shell, three screen bodies tagged
+`data-view`, every repeated row a `<template>` cut from the mockup itself.
+
+Two one-time tools rebuild it from the export, and both assert every edit lands, so a
+re-export fails loudly rather than silently skipping a removal:
+
+```powershell
+.venv\Scripts\python.exe tools\vendor_assets.py    # fonts, icons, Tailwind, logo
+.venv\Scripts\python.exe tools\merge_stitch.py     # merge + localise
+.venv\Scripts\python.exe tools\clean_stitch.py     # strip the invented content
+```
+
+| piece | where |
+|---|---|
+| routing, `/chat/<id>`, `/dogs/<name>` | `js/router.js` + `api.SpaFiles` |
+| dogs and chats on disk | `pupchat/library.py` |
+| progress while measuring | `pupchat/jobs.py` + `js/jobs.js` |
+| the phone QR | `pupchat/share.py` |
+| comparisons in the evidence | `pupchat/reference.py` |
+| source links | `pupchat/sources.py` |
+
+**Nothing loads from Google.** 528 KB vendored. The icon font went 1,112 KB → 18 KB, and
+that took three tries: subsetting by ligature text does nothing (every icon name is spelled
+from the same alphabet, so closure retains them all), and `--no-layout-closure` alone
+produced 18 KB of icons that rendered blank because this font carries its ligatures under
+`rclt`/`rlig`, not `liga`. Both failures are silent — a valid font file, merely smaller —
+so `verify_icons()` loads the subset back and refuses to ship unless all 69 names resolve.
+
+**What was deleted from the design, not restyled.** The chat mockup's "Observed Arousal
+State" panel: *Zone 2: Alert Vigorous*, *Rhythmic Staccato*, *High Rigid Sweep*, *Every 3-4
+barks*, *Success rate: 82%*. Two of those need audio, which does not exist anywhere in this
+project, and `alert`/`aroused` are in `BANNED_WORDS` precisely so a conclusion is never
+dressed as a measurement. Shipping it as chrome would defeat the evidence layer in the UI.
+
+**Testing a front end with no browser and no Node.** Neither exists here, so the JS cannot
+be run. What `tests/test_pupchat_webapp_js.py` checks is the join between design and code,
+which is where a rename breaks things silently: every import resolves, every module is
+reachable from `main.js`, every `tpl()` name exists, every `data-*` hook is in the markup,
+every id is real, and no `href="#"` survives. A missing hook returns null from
+`querySelector` and the feature quietly does nothing.
+
+### Comparisons: what a measurement is judged against
+
+`reference.py` adds two comparisons to each evidence line, both computed in Python because
+they are claims about measurement and a model cannot check one.
+
+**Against other dogs** — percentiles over DogFLW's 4,333 hand-annotated images, built once
+by `tools/build_reference.py`. **Two features only**, and both exclusions were found rather
+than assumed:
+
+* **Angles are excluded.** On a real clip `ear_angle_L_basevec` runs −115..+92 (median −96)
+  where the DogFLW ground truth runs +29..+172 (median +144) — and the right ear is offset
+  identically. Both ears, consistently: a difference of *convention* between the two
+  measurements, not between dogs. A band across that gap would have told an owner their
+  ordinary dog's ears were "well below most dogs". A percentile on a wrapped quantity is
+  unsound anyway (§10, `head_tilt`).
+* **Bookkeeping columns are excluded** — `n_paws`, `tail_conf`, `head_tilt_used_ground`.
+  They survive a scale-free test only because they are constant with no body in frame, and
+  a percentile over a column of zeros looks exactly like one that means something.
+
+**Body features have no population band at all**, permanently: they divide by body length,
+which needs the withers, and StanfordExtra leaves it empty in all 2,545 overlapping images.
+`src/label_withers.py` would unblock it and has never been run.
+
+**Against the dog's own baseline** — the better comparison for body features anyway, since
+the body-length error is common-mode and cancels. A difference is only called real above
+**2× the feature's measured error**; below that it is tracking noise reported as a fact
+about the dog. Angular differences wrap.
+
+### Sources, and why the model writes none
+
+`PUPCHAT_GROUNDING=1` (**off by default** — a grounded request can cost more per answer)
+lets Gemini search, and `sources.py` builds the link list from the API's grounding
+metadata. The prompt forbids the model writing a URL, study, author, year, journal or DOI
+itself, and `answer_check` **fails** an answer containing one. A fabricated link has
+nowhere to come from — not unlikely, impossible.
+
+Two traps handled: `end_index` is a **byte** offset into UTF-8, so one curly quote puts
+every later marker mid-word; and the chunk URI is a redirect through
+`vertexaisearch.cloud.google.com`, so deriving the domain from it names Google as the
+source of everything (the API supplies the real one).
+
+**Unverified, because no live call was made:** whether this model accepts `google_search`
+alongside an uploaded video in one request, whether the redirect URIs expire, and what
+grounding adds to the per-answer cost. First checks for whoever turns it on.
 
 ### Sharing it: what changes when it is not just you
 

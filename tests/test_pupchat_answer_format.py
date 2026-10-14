@@ -89,7 +89,7 @@ def test_the_headings_must_be_in_order():
     assert not looks_like_new_video_answer(scrambled)
 
 
-def test_a_missing_heading_fails():
+def test_a_missing_heading_is_detected():
     without_do = NEW_VIDEO_ANSWER.replace("**Do**", "")
     assert not looks_like_new_video_answer(without_do)
     assert "Do" in check(without_do, new_video=True)["missing_sections"]
@@ -253,3 +253,136 @@ def test_the_prompt_puts_the_referral_at_the_end():
 def test_the_full_check_passes_on_a_good_answer():
     assert check(NEW_VIDEO_ANSWER, new_video=True)["passed"]
     assert check(FOLLOW_UP_ANSWER, new_video=False)["passed"]
+
+
+# ============================================================ the loosened contract
+#
+# The prompt now says "use fewer headings, or differently named ones, when the question
+# calls for it". The five sections are still the default shape and are still reported,
+# but they stopped being a pass condition - otherwise the check would fail the prompt
+# for following its own instruction.
+
+SHORT_FLEXIBLE = """**What I see**
+He stands square with his weight even, ears forward, tail level with his spine.
+
+**What it likely means**
+That posture usually goes with watching something rather than reacting to it.
+
+**What to do**
+Let him look. Call him away once he settles, and pay him for coming.
+"""
+
+
+def test_a_short_flexible_answer_is_not_a_failure():
+    from pupchat.answer_check import check
+    out = check(SHORT_FLEXIBLE, new_video=True)
+    assert out["passed"] is True
+    assert out["five_sections"] is False
+    assert "What I see" in out["core_covered"]
+
+
+def test_the_five_section_shape_is_still_recognised():
+    from pupchat.answer_check import check
+    out = check(NEW_VIDEO_ANSWER, new_video=True)
+    assert out["five_sections"] is True and out["passed"] is True
+
+
+def test_a_follow_up_that_re_runs_the_whole_format_still_fails():
+    """The one format rule that remains: a follow-up is a conversation, not a report."""
+    from pupchat.answer_check import check
+    assert check(NEW_VIDEO_ANSWER, new_video=False)["passed"] is False
+
+
+def test_an_overlong_answer_is_flagged_but_not_failed():
+    from pupchat.answer_check import check
+    out = check("word " * 600, new_video=True)
+    assert out["too_long"] is True
+    assert out["word_count"] > 450
+
+
+def test_an_empty_answer_never_passes():
+    from pupchat.answer_check import check
+    assert check("", new_video=True)["passed"] is False
+    assert check("   \n ", new_video=False)["passed"] is False
+
+
+# ------------------------------------------------------------ invented citations
+
+def test_a_citation_the_model_wrote_itself_is_a_failure():
+    """The prompt tells it to write none - the app adds the links from search results.
+    One it typed is the only one that could be invented, and the only kind of wrongness
+    a reader cannot check."""
+    from pupchat.answer_check import check
+    out = check(SHORT_FLEXIBLE + "\n\nSee Smith et al., 2019 for more.", new_video=True)
+    assert out["citation_shaped"]
+    assert out["passed"] is False
+
+
+def test_plain_language_sourcing_still_passes():
+    from pupchat.answer_check import check
+    text = SHORT_FLEXIBLE.replace(
+        "That posture usually",
+        "Research on canine body language finds that posture usually")
+    assert check(text, new_video=True)["passed"] is True
+
+
+# ------------------------------------------------------------ feelings in "What I see"
+
+def test_a_feeling_word_in_what_i_see_fails():
+    """The prompt splits description from interpretation. Putting the conclusion in the
+    description section is how the measurements end up proving the reading they led to."""
+    from pupchat.answer_check import check
+    text = SHORT_FLEXIBLE.replace("He stands square", "He looks anxious and stands square")
+    out = check(text, new_video=True)
+    assert "anxious" in out["feelings_in_what_i_see"]
+    assert out["passed"] is False
+
+
+def test_a_feeling_word_in_the_interpretation_section_is_fine():
+    """That section is where interpreting belongs."""
+    from pupchat.answer_check import check
+    text = SHORT_FLEXIBLE.replace("That posture usually goes with watching",
+                                  "He is likely anxious rather than watching")
+    assert check(text, new_video=True)["passed"] is True
+
+
+def test_saying_a_feeling_is_absent_is_not_flagged():
+    """Negation-aware, like the aversive check: "doesn't look anxious" describes what is
+    not there."""
+    from pupchat.answer_check import check
+    text = SHORT_FLEXIBLE.replace("He stands square",
+                                  "He doesn't look anxious. He stands square")
+    assert check(text, new_video=True)["feelings_in_what_i_see"] == []
+
+
+def test_body_language_words_are_still_allowed_in_what_i_see():
+    """"relaxed" and "tense" describe muscle tone, which is body. They are banned in the
+    EVIDENCE, where no interpretation is allowed at all, but banning them in the answer
+    would be the check fighting the prompt."""
+    from pupchat.answer_check import check
+    text = SHORT_FLEXIBLE.replace("He stands square",
+                                  "His mouth is relaxed and he stands square")
+    assert check(text, new_video=True)["feelings_in_what_i_see"] == []
+
+
+# ------------------------------------------------------------ the prompt itself
+
+def test_the_prompt_asks_for_short_answers():
+    assert "keep it short" in _flat(system_prompt())
+
+
+def test_the_prompt_allows_a_different_shape():
+    assert "use fewer headings, or differently named ones" in _flat(system_prompt())
+
+
+def test_the_prompt_forbids_writing_a_citation():
+    flat = _flat(system_prompt())
+    assert "never write a url" in flat
+    assert "never invent a study" in flat
+
+
+def test_the_prompt_still_asks_for_the_comparison_words():
+    """The evidence now carries "higher than most dogs" and "lower than usual". If the
+    prompt never mentions them the model has no reason to use them."""
+    flat = _flat(system_prompt())
+    assert "than most dogs" in flat or "comparisons the measurements carry" in flat

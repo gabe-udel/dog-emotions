@@ -33,6 +33,20 @@ EPFL-TTO.
 
 These weights are run **unmodified** here — no fine-tuning, no head surgery.
 
+## Fonts and front-end libraries
+
+Bundled under `pupchat/webapp/assets/`, each with its licence beside it.
+
+| asset | licence |
+|---|---|
+| Plus Jakarta Sans | SIL Open Font License 1.1 |
+| Material Symbols Outlined (subset, 69 glyphs) | Apache License 2.0 |
+| Tailwind CSS (Play CDN build) | MIT |
+
+They are vendored rather than linked so the page works with no internet and does not tell
+Google who is looking at it. `tools/vendor_assets.py` fetches them; the output is
+committed.
+
 ## Video clips
 
 | clip | licence |
